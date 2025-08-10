@@ -1,0 +1,65 @@
+---
+Organizations:
+    - &OrdererOrg
+      Name: OrdererOrg
+      ID: OrdererMSP
+      MSPDir: crypto-config/ordererOrganizations/example.com/msp
+    - &ShamsOrg
+      Name: ShamsOrg
+      ID: ShamsMSP
+      MSPDir: crypto-config/peerOrganizations/shams.example.com/msp
+      AnchorPeers:
+        - Host: peer0.shams.example.com
+          Port: 7051
+    - &RebarOrg
+      Name: RebarOrg
+      ID: RebarMSP
+      MSPDir: crypto-config/peerOrganizations/rebar.example.com/msp
+      AnchorPeers:
+        - Host: peer0.rebar.example.com
+          Port: 9051
+
+Capabilities:
+    Channel: &ChannelCapabilities
+        V2_0: true
+    Orderer: &OrdererCapabilities
+        V2_0: true
+    Application: &ApplicationCapabilities
+        V2_0: true
+
+Application: &ApplicationDefaults
+    ACLs: {}
+    Organizations: []
+
+Orderer: &OrdererDefaults
+    OrdererType: solo
+    Addresses:
+        - orderer.example.com:7050
+    Organizations: []
+
+Channel: &ChannelDefaults
+    Capabilities:
+        <<: *ChannelCapabilities
+
+Profiles:
+    RebarGenesis:
+        <<: *ChannelDefaults
+        Orderer:
+            <<: *OrdererDefaults
+            Organizations:
+                - *OrdererOrg
+        Consortiums:
+            RebarConsortium:
+                Organizations:
+                    - *ShamsOrg
+                    - *RebarOrg
+
+    RebarChannel:
+        Consortium: RebarConsortium
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+                - *ShamsOrg
+                - *RebarOrg
+            Capabilities:
+                <<: *ApplicationCapabilities
