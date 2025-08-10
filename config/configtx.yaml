@@ -1,65 +1,110 @@
 ---
 Organizations:
-    - &OrdererOrg
-      Name: OrdererOrg
-      ID: OrdererMSP
-      MSPDir: crypto-config/ordererOrganizations/example.com/msp
-    - &ShamsOrg
-      Name: ShamsOrg
-      ID: ShamsMSP
-      MSPDir: crypto-config/peerOrganizations/shams.example.com/msp
-      AnchorPeers:
-        - Host: peer0.shams.example.com
-          Port: 7051
-    - &RebarOrg
-      Name: RebarOrg
-      ID: RebarMSP
-      MSPDir: crypto-config/peerOrganizations/rebar.example.com/msp
-      AnchorPeers:
-        - Host: peer0.rebar.example.com
-          Port: 9051
+  - &ShamsOrg
+    Name: ShamsOrg
+    ID: ShamsMSP
+    MSPDir: crypto-config/peerOrganizations/shams.example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ShamsMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ShamsMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ShamsMSP.admin')"
+    AnchorPeers:
+      - Host: peer0.shams.example.com
+        Port: 7051
 
-Capabilities:
-    Channel: &ChannelCapabilities
-        V2_0: true
-    Orderer: &OrdererCapabilities
-        V2_0: true
-    Application: &ApplicationCapabilities
-        V2_0: true
-
-Application: &ApplicationDefaults
-    ACLs: {}
-    Organizations: []
+  - &RebarOrg
+    Name: RebarOrg
+    ID: RebarMSP
+    MSPDir: crypto-config/peerOrganizations/rebar.example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('RebarMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('RebarMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('RebarMSP.admin')"
+    AnchorPeers:
+      - Host: peer0.rebar.example.com
+        Port: 9051
 
 Orderer: &OrdererDefaults
-    OrdererType: solo
-    Addresses:
-        - orderer.example.com:7050
-    Organizations: []
+  OrdererType: etcdraft
+  Addresses:
+    - orderer.example.com:7050
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  EtcdRaft:
+    Consenters:
+      - Host: orderer.example.com
+        Port: 7050
+        ClientTLSCert: crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls/server.crt
+  Policies:
+    Readers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Writers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Admins:
+      Type: Signature
+      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+    BlockValidation:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
 
 Channel: &ChannelDefaults
-    Capabilities:
-        <<: *ChannelCapabilities
+  Policies:
+    Readers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Writers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Admins:
+      Type: Signature
+      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
 
 Profiles:
-    RebarGenesis:
-        <<: *ChannelDefaults
-        Orderer:
-            <<: *OrdererDefaults
-            Organizations:
-                - *OrdererOrg
-        Consortiums:
-            RebarConsortium:
-                Organizations:
-                    - *ShamsOrg
-                    - *RebarOrg
+  RebarGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *ShamsOrg
+        - *RebarOrg
+    Consortiums:
+      RebarConsortium:
+        Organizations:
+          - *ShamsOrg
+          - *RebarOrg
 
-    RebarChannel:
-        Consortium: RebarConsortium
-        Application:
-            <<: *ApplicationDefaults
-            Organizations:
-                - *ShamsOrg
-                - *RebarOrg
-            Capabilities:
-                <<: *ApplicationCapabilities
+  RebarChannel:
+    Consortium: RebarConsortium
+    <<: *ChannelDefaults
+    Application:
+      Organizations:
+        - *ShamsOrg
+        - *RebarOrg
+      Policies:
+        Readers:
+          Type: Signature
+          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+        Writers:
+          Type: Signature
+          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+        Admins:
+          Type: Signature
+          Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
