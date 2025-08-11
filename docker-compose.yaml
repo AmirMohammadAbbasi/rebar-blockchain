@@ -2,7 +2,7 @@ version: '3.7'
 
 networks:
   fabric_net:
-    external: true
+    driver: bridge
 
 services:
   orderer.example.com:
@@ -27,12 +27,9 @@ services:
     ports:
       - 7050:7050
     networks:
-      - fabric_net
-    healthcheck:
-      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/7050 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
+      fabric_net:
+        aliases:
+          - orderer.example.com
 
   peer0.shams.example.com:
     container_name: peer0.shams.example.com
@@ -56,12 +53,9 @@ services:
     depends_on:
       - orderer.example.com
     networks:
-      - fabric_net
-    healthcheck:
-      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/7051 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
+      fabric_net:
+        aliases:
+          - peer0.shams.example.com
 
   peer0.rebar.example.com:
     container_name: peer0.rebar.example.com
@@ -85,9 +79,21 @@ services:
     depends_on:
       - orderer.example.com
     networks:
-      - fabric_net
-    healthcheck:
-      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/9051 || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 15
+      fabric_net:
+        aliases:
+          - peer0.rebar.example.com
+
+  cli:
+    container_name: cli
+    image: hyperledger/fabric-tools:2.5
+    platform: linux/amd64
+    tty: true
+    stdin_open: true
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    volumes:
+      - ./config:/var/hyperledger/config
+      - ./chaincode:/opt/gopath/src/github.com/chaincode
+    networks:
+      fabric_net:
+        aliases:
+          - cli
