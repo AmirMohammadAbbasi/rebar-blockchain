@@ -1,0 +1,93 @@
+version: '3.7'
+
+networks:
+  fabric_net:
+    external: true
+
+services:
+  orderer.example.com:
+    container_name: orderer.example.com
+    image: hyperledger/fabric-orderer:2.5
+    platform: linux/amd64
+    environment:
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7050
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/genesis.block
+      - ORDERER_GENERAL_TLS_ENABLED=true
+      - ORDERER_GENERAL_TLS_PRIVATEKEY=/var/hyperledger/orderer/tls/server.key
+      - ORDERER_GENERAL_TLS_CERTIFICATE=/var/hyperledger/orderer/tls/server.crt
+      - ORDERER_GENERAL_TLS_ROOTCAS=[/var/hyperledger/orderer/tls/ca.crt]
+    volumes:
+      - ./config/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./config/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/var/hyperledger/orderer/msp
+      - ./config/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/tls:/var/hyperledger/orderer/tls
+    ports:
+      - 7050:7050
+    networks:
+      - fabric_net
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/7050 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  peer0.shams.example.com:
+    container_name: peer0.shams.example.com
+    image: hyperledger/fabric-peer:2.5
+    platform: linux/amd64
+    environment:
+      - CORE_PEER_ID=peer0.shams.example.com
+      - CORE_PEER_ADDRESS=peer0.shams.example.com:7051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/var/hyperledger/peer/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/var/hyperledger/peer/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/var/hyperledger/peer/tls/ca.crt
+    volumes:
+      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/tls:/var/hyperledger/peer/tls
+    ports:
+      - 7051:7051
+    depends_on:
+      - orderer.example.com
+    networks:
+      - fabric_net
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/7051 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  peer0.rebar.example.com:
+    container_name: peer0.rebar.example.com
+    image: hyperledger/fabric-peer:2.5
+    platform: linux/amd64
+    environment:
+      - CORE_PEER_ID=peer0.rebar.example.com
+      - CORE_PEER_ADDRESS=peer0.rebar.example.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_LOCALMSPID=RebarMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/var/hyperledger/peer/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/var/hyperledger/peer/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/var/hyperledger/peer/tls/ca.crt
+    volumes:
+      - ./config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+      - ./config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/tls:/var/hyperledger/peer/tls
+    ports:
+      - 9051:9051
+    depends_on:
+      - orderer.example.com
+    networks:
+      - fabric_net
+    healthcheck:
+      test: ["CMD-SHELL", "echo > /dev/tcp/127.0.0.1/9051 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
