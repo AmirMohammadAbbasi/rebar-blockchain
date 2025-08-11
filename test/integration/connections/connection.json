@@ -1,0 +1,90 @@
+{
+  "name": "rebar-network",
+  "version": "1.0.0",
+  "organizations": {
+    "Org1MSP": {
+      "mspid": "Org1MSP",
+      "peers": ["peer0.org1.example.com"],
+      "certificateAuthorities": ["ca.org1.example.com"]
+    },
+    "Org2MSP": {
+      "mspid": "Org2MSP",
+      "peers": ["peer0.org2.example.com"],
+      "certificateAuthorities": ["ca.org2.example.com"]
+    },
+    "Org3MSP": {
+      "mspid": "Org3MSP",
+      "peers": ["peer0.org3.example.com"],
+      "certificateAuthorities": ["ca.org3.example.com"]
+    },
+    "Org4MSP": {
+      "mspid": "Org4MSP",
+      "peers": ["peer0.org4.example.com"],
+      "certificateAuthorities": ["ca.org4.example.com"]
+    }
+  },
+  "orderers": {
+    "orderer.example.com": {
+      "url": "grpcs://localhost:7050",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/orderer-ca.crt"
+      }
+    }
+  },
+  "peers": {
+    "peer0.org1.example.com": {
+      "url": "grpcs://localhost:7051",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org1-ca.crt"
+      }
+    },
+    "peer0.org2.example.com": {
+      "url": "grpcs://localhost:9051",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org2-ca.crt"
+      }
+    },
+    "peer0.org3.example.com": {
+      "url": "grpcs://localhost:11051",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org3-ca.crt"
+      }
+    },
+    "peer0.org4.example.com": {
+      "url": "grpcs://localhost:13051",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org4-ca.crt"
+      }
+    }
+  },
+  "certificateAuthorities": {
+    "ca.org1.example.com": {
+      "url": "https://localhost:7054",
+      "caName": "ca-org1",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org1-ca.crt"
+      }
+    },
+    "ca.org2.example.com": {
+      "url": "https://localhost:8054",
+      "caName": "ca-org2",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org2-ca.crt"
+      }
+    },
+    "ca.org3.example.com": {
+      "url": "https://localhost:9054",
+      "caName": "ca-org3",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org3-ca.crt"
+      }
+    },
+    "ca.org4.example.com": {
+      "url": "https://localhost:10054",
+      "caName": "ca-org4",
+      "tlsCACerts": {
+        "path": "/var/hyperledger/peer/tls/org4-ca.crt"
+      }
+    }
+  }
+}

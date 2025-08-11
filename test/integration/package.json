@@ -1,0 +1,13 @@
+{
+  "name": "integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for Rebar Blockchain",
+  "scripts": {
+    "test": "mocha *.integration.test.js --recursive --exit"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "fabric-network": "^2.2.20"
+  }
+}
