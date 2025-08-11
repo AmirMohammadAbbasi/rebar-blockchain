@@ -1,12 +1,20 @@
 {
-  "name": "rebar-chaincode",
+  "name": "rebar-shams-chaincode",
   "version": "1.0.0",
+  "description": "Chaincode for rebar lifecycle: shams and bundles",
   "main": "index.js",
   "scripts": {
-    "start": "fabric-chaincode-node start"
+    "test": "mocha --exit",
+    "start": "node index.js"
   },
   "dependencies": {
     "fabric-contract-api": "^2.5.0",
     "fabric-shim": "^2.5.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "sinon": "^15.2.0",
+    "fabric-shim-crypto": "^1.0.0"
   }
 }

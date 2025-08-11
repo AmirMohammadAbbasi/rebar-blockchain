@@ -1,2 +1,5 @@
 /config/crypto*
 /crypto-config
+*node_modules*
+*.tx
+*.block
