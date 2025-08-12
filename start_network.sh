@@ -1,50 +1,95 @@
 #!/bin/bash
 set -e
-source ./scripts/env.sh
 
-echo "🧹 Cleaning old artifacts & containers..."
-docker compose -f docker-compose.yaml down -v --remove-orphans || true
-rm -rf config/crypto-config config/*.block config/*.tx
+# مسیر پروژه
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DOCKER_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yaml"
+
+# بارگذاری متغیر‌ها
+source "$PROJECT_DIR/scripts/env.sh"
+: "${CHANNEL_NAME:?CHANNEL_NAME not set in env.sh}"
+
+echo "🌐 Ensuring Docker network exists..."
+docker network ls | grep -q fabric_net || docker network create fabric_net
+
+echo "🧹 Cleaning old containers, volumes, and artifacts..."
+docker compose -f "$DOCKER_COMPOSE_FILE" down -v --remove-orphans || true
+rm -rf "$PROJECT_DIR/config/crypto-config" \
+       "$PROJECT_DIR/config"/*.block \
+       "$PROJECT_DIR/config"/*.tx
 
 echo "🔨 Generating artifacts..."
-./scripts/generate_artifacts.sh
+"$PROJECT_DIR/scripts/generate_artifacts.sh"
 
-echo "🚀 Starting all containers..."
-docker compose -f docker-compose.yaml up -d
+echo "🚀 Starting all Fabric containers..."
+docker compose -f "$DOCKER_COMPOSE_FILE" up -d
 
-echo "⏳ Waiting for orderer & peers to be ready..."
+echo "⏳ Waiting for orderer & peers healthchecks..."
 sleep 10
 
+# Helper to run peer commands inside CLI container
+exec_cli() {
+  local MSP_ID="$1"
+  local MSP_PATH="$2"
+  local PEER_ADDRESS="$3"
+  shift 3
+  docker exec \
+    -e CORE_PEER_LOCALMSPID="$MSP_ID" \
+    -e CORE_PEER_MSPCONFIGPATH="$MSP_PATH" \
+    -e CORE_PEER_ADDRESS="$PEER_ADDRESS" \
+    -e CORE_PEER_TLS_ENABLED=false \
+    cli "$@"
+}
+
+# ==== Channel creation (ShamsMSP Admin) ====
 echo "📄 Creating channel: ${CHANNEL_NAME}"
-docker exec cli peer channel create \
-  -o orderer.example.com:7050 \
-  -c ${CHANNEL_NAME} \
-  -f /etc/hyperledger/config/${CHANNEL_NAME}.tx
+exec_cli \
+  ShamsMSP \
+  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+  peer0.shams.example.com:7051 \
+  peer channel create \
+    -o orderer.example.com:7050 \
+    -c "${CHANNEL_NAME}" \
+    -f "/etc/hyperledger/config/${CHANNEL_NAME}.tx" \
+    --outputBlock "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
-echo "🔗 Joining shams peer..."
-docker exec cli peer channel join \
-  -b ${CHANNEL_NAME}.block
+# ==== Join Shams peer ====
+echo "🔗 Joining Shams peer..."
+exec_cli \
+  ShamsMSP \
+  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+  peer0.shams.example.com:7051 \
+  peer channel join -b "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
-echo "🔗 Joining rebar peer..."
-docker exec -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
-           -e CORE_PEER_LOCALMSPID=RebarMSP \
-           -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp \
-           cli peer channel join -b ${CHANNEL_NAME}.block
+# ==== Join Rebar peer ====
+echo "🔗 Joining Rebar peer..."
+exec_cli \
+  RebarMSP \
+  /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
+  peer0.rebar.example.com:9051 \
+  peer channel join -b "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
+# ==== Update Shams anchor peers ====
 echo "📍 Updating Shams anchor peers..."
-docker exec cli peer channel update \
-  -o orderer.example.com:7050 \
-  -c ${CHANNEL_NAME} \
-  -f /etc/hyperledger/config/ShamsMSPanchors.tx
+exec_cli \
+  ShamsMSP \
+  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+  peer0.shams.example.com:7051 \
+  peer channel update \
+    -o orderer.example.com:7050 \
+    -c "${CHANNEL_NAME}" \
+    -f "/etc/hyperledger/config/ShamsMSPanchors.tx"
 
+# ==== Update Rebar anchor peers ====
 echo "📍 Updating Rebar anchor peers..."
-docker exec -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
-           -e CORE_PEER_LOCALMSPID= \
-           -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp \
-           cli peer channel update \
-              -o orderer.example.com:7050 \
-              -c ${CHANNEL_NAME} \
-              -f /etc/hyperledger/config/RebarMSPanchors.tx
+exec_cli \
+  RebarMSP \
+  /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
+  peer0.rebar.example.com:9051 \
+  peer channel update \
+    -o orderer.example.com:7050 \
+    -c "${CHANNEL_NAME}" \
+    -f "/etc/hyperledger/config/RebarMSPanchors.tx"
 
 echo "✅ Network setup complete without TLS."
 docker ps --format "table {{.Names}}	{{.Status}}"

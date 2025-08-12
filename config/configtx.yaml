@@ -1,4 +1,3 @@
----
 Organizations:
   - &ShamsOrg
     Name: ShamsOrg
@@ -36,6 +35,21 @@ Organizations:
       - Host: peer0.rebar.example.com
         Port: 9051
 
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: crypto-config/ordererOrganizations/example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+
 Orderer: &OrdererDefaults
   OrdererType: solo
   Addresses:
@@ -48,28 +62,28 @@ Orderer: &OrdererDefaults
   Policies:
     Readers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Writers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Admins:
       Type: Signature
-      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
     BlockValidation:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
 
 Channel: &ChannelDefaults
   Policies:
     Readers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Writers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Admins:
       Type: Signature
-      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
 
 Profiles:
   RebarGenesis:
@@ -77,8 +91,7 @@ Profiles:
     Orderer:
       <<: *OrdererDefaults
       Organizations:
-        - *ShamsOrg
-        - *RebarOrg
+        - *OrdererOrg
     Consortiums:
       RebarConsortium:
         Organizations:
@@ -95,10 +108,10 @@ Profiles:
       Policies:
         Readers:
           Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
         Writers:
           Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
         Admins:
           Type: Signature
-          Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+          Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
