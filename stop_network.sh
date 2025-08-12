@@ -8,7 +8,7 @@ set -e
 # ============================
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)
-COMPOSE_PATH="$PROJECT_DIR/docker/docker-compose.yaml"
+COMPOSE_PATH="$PROJECT_DIR/docker-compose.yaml"
 # نام شبکه‌ای که docker compose ایجاد می‌کند (معمولاً docker_default)
 # اگر می‌خوای دقیق‌تر باشه می‌تونی اسم شبکه واقعی رو بذاری
 PROJECT_NETWORK="docker_default"
