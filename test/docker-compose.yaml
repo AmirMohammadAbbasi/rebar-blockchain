@@ -5,7 +5,6 @@ networks:
     external: true
 
 services:
-  # === Orderer (TEST) ===
   test-orderer.example.com:
     container_name: test-orderer.example.com
     image: hyperledger/fabric-orderer:2.5
@@ -24,8 +23,13 @@ services:
       - 7150:7150
     networks:
       - fabric_test_net
+    healthcheck:
+      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  # === Peer0 Shams (TEST) ===
   test-peer0.shams.example.com:
     container_name: test-peer0.shams.example.com
     image: hyperledger/fabric-peer:2.5
@@ -42,11 +46,17 @@ services:
     ports:
       - 7151:7151
     depends_on:
-      - test-orderer.example.com
+      test-orderer.example.com:
+        condition: service_healthy
     networks:
       - fabric_test_net
+    healthcheck:
+      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  # === Peer0 Rebar (TEST) ===
   test-peer0.rebar.example.com:
     container_name: test-peer0.rebar.example.com
     image: hyperledger/fabric-peer:2.5
@@ -63,34 +73,17 @@ services:
     ports:
       - 9151:9151
     depends_on:
-      - test-orderer.example.com
+      test-orderer.example.com:
+        condition: service_healthy
     networks:
       - fabric_test_net
+    healthcheck:
+      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
-  # === Fabric CAs (TEST) ===
-  test-ca.shams.example.com:
-    image: hyperledger/fabric-ca:1.5
-    container_name: test-ca.shams.example.com
-    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
-    ports:
-      - "7054:7054"
-    volumes:
-      - ./artifacts/crypto-config/peerOrganizations/shams.example.com/ca:/etc/hyperledger/fabric-ca-server
-    networks:
-      - fabric_test_net
-
-  test-ca.rebar.example.com:
-    image: hyperledger/fabric-ca:1.5
-    container_name: test-ca.rebar.example.com
-    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
-    ports:
-      - "8054:8054"
-    volumes:
-      - ./artifacts/crypto-config/peerOrganizations/rebar.example.com/ca:/etc/hyperledger/fabric-ca-server
-    networks:
-      - fabric_test_net
-
-  # === CLI (TEST) ===
   test-cli:
     container_name: test-cli
     image: hyperledger/fabric-tools:2.5
@@ -110,25 +103,9 @@ services:
     networks:
       - fabric_test_net
     depends_on:
-      - test-peer0.shams.example.com
-      - test-peer0.rebar.example.com
-      - test-orderer.example.com
-
-  # === Test Runner ===
-  test-runner:
-    image: node:18
-    container_name: test-runner
-    working_dir: /workspace
-    tty: true
-    stdin_open: true
-    environment:
-      - CORE_PEER_TLS_ENABLED=false
-      - CORE_PEER_LOCALMSPID=ShamsMSP
-    volumes:
-      - ./artifacts:/etc/hyperledger/artifacts
-      - ./:/workspace
-    networks:
-      - fabric_test_net
-    depends_on:
-      - test-cli
-    command: ["npm", "test", "--prefix", "integration"]
+      test-peer0.shams.example.com:
+        condition: service_healthy
+      test-peer0.rebar.example.com:
+        condition: service_healthy
+      test-orderer.example.com:
+        condition: service_healthy

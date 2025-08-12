@@ -20,7 +20,7 @@ docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
         --config=config/crypto-config.yaml \
         --output="artifacts/crypto-config"
 
-echo "🧩 Generating TEST genesis block..."
+echo "🧩 Generating TEST genesis block (solo, no TLS)..."
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
     -e FABRIC_CFG_PATH=/workspace/artifacts \
     --platform linux/amd64 $TOOLS_IMG \
