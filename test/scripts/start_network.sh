@@ -1,86 +1,106 @@
 #!/bin/bash
 set -e
+source ./scripts/env.sh
 
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DOCKER_COMPOSE_FILE="$PROJECT_DIR/docker-compose.yaml"
 CHANNEL_NAME="testchannel"
-TEST_DOCKER_NETWORK="fabric_test_net"
-ARTIFACTS_DIR="$PROJECT_DIR/artifacts"
-CLI_ARTIFACTS_PATH="/etc/hyperledger/artifacts"
 
-echo "🌐 Ensuring TEST Docker network exists..."
-docker network ls | grep -q "$TEST_DOCKER_NETWORK" || docker network create "$TEST_DOCKER_NETWORK"
+echo "🧹 Cleaning old artifacts & containers..."
+docker compose -f docker-compose.yaml down -v --remove-orphans || true
+rm -rf artifacts/*.block artifacts/*.tx crypto-config
 
-echo "🧹 Cleaning old TEST containers, volumes, and artifacts..."
-docker compose -f "$DOCKER_COMPOSE_FILE" down -v --remove-orphans || true
-rm -rf "$ARTIFACTS_DIR"
+echo "🔨 Generating artifacts..."
+./scripts/generate_artifacts.sh
 
-echo "🔨 Generating TEST artifacts..."
-"$PROJECT_DIR/scripts/generate_artifacts.sh"
-
-echo "🚀 Starting all Fabric TEST containers..."
-docker compose -f "$DOCKER_COMPOSE_FILE" up -d
+echo "🚀 Starting all containers..."
+docker compose -f docker-compose.yaml up -d
 
 echo "⏳ Waiting for orderer & peers to be ready..."
 sleep 10
 
-exec_cli_test() {
-  local MSP_ID="$1"
-  local MSP_PATH="$2"
-  local PEER_ADDRESS="$3"
-  shift 3
-  docker exec \
-    -e CORE_PEER_LOCALMSPID="$MSP_ID" \
-    -e CORE_PEER_MSPCONFIGPATH="$MSP_PATH" \
-    -e CORE_PEER_ADDRESS="$PEER_ADDRESS" \
-    -e CORE_PEER_TLS_ENABLED=false \
-    test-cli "$@"
-}
+# ========= STEP 1: Create channel tx with Shams admin =========
+echo "📄 STEP 1: Generating channel block with Shams admin..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=ShamsMSP \
+    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@shams.example.com/msp \
+    cli \
+    peer channel create \
+        -o orderer.example.com:7050 \
+        -c ${CHANNEL_NAME} \
+        -f /etc/hyperledger/config/${CHANNEL_NAME}.tx \
+        --outputBlock /etc/hyperledger/config/${CHANNEL_NAME}.block \
+        --tls=false \
+        --clientauth=false
 
-echo "📄 Creating TEST channel: ${CHANNEL_NAME}"
-exec_cli_test \
-  ShamsMSP \
-  "$CLI_ARTIFACTS_PATH/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp" \
-  test-peer0.shams.example.com:7151 \
-  peer channel create \
-    -o test-orderer.example.com:7150 \
-    -c "${CHANNEL_NAME}" \
-    -f "${CLI_ARTIFACTS_PATH}/${CHANNEL_NAME}.tx" \
-    --outputBlock "${CLI_ARTIFACTS_PATH}/${CHANNEL_NAME}.block"
+# ========= STEP 2: Sign channel tx with Rebar admin =========
+echo "✍️ STEP 2: Signing channel configtx with Rebar admin..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=RebarMSP \
+    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@rebar.example.com/msp \
+    cli \
+    peer channel signconfigtx \
+        -f /etc/hyperledger/config/${CHANNEL_NAME}.tx
 
-echo "🔗 Joining TEST Shams peer..."
-exec_cli_test \
-  ShamsMSP \
-  "$CLI_ARTIFACTS_PATH/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp" \
-  test-peer0.shams.example.com:7151 \
-  peer channel join -b "${CLI_ARTIFACTS_PATH}/${CHANNEL_NAME}.block"
+# ========= STEP 3: Submit channel creation =========
+# یکی از Adminها (مثلاً Shams) تراکنش امضا شده رو submit می‌کنه
+echo "🚀 STEP 3: Submitting multi-signed channel creation..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=ShamsMSP \
+    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@shams.example.com/msp \
+    cli \
+    peer channel create \
+        -o orderer.example.com:7050 \
+        -c ${CHANNEL_NAME} \
+        -f /etc/hyperledger/config/${CHANNEL_NAME}.tx \
+        --outputBlock /etc/hyperledger/config/${CHANNEL_NAME}.block \
+        --tls=false \
+        --clientauth=false
 
-echo "🔗 Joining TEST Rebar peer..."
-exec_cli_test \
-  RebarMSP \
-  "$CLI_ARTIFACTS_PATH/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp" \
-  test-peer0.rebar.example.com:9151 \
-  peer channel join -b "${CLI_ARTIFACTS_PATH}/${CHANNEL_NAME}.block"
+# ========= STEP 4: Join both peers =========
+echo "🔗 Joining Shams peer..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=ShamsMSP \
+    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@shams.example.com/msp \
+    cli \
+    peer channel join -b /etc/hyperledger/config/${CHANNEL_NAME}.block
 
-echo "📍 Updating TEST Shams anchor peers..."
-exec_cli_test \
-  ShamsMSP \
-  "$CLI_ARTIFACTS_PATH/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp" \
-  test-peer0.shams.example.com:7151 \
-  peer channel update \
-    -o test-orderer.example.com:7150 \
-    -c "${CHANNEL_NAME}" \
-    -f "${CLI_ARTIFACTS_PATH}/ShamsMSPanchors.tx"
+echo "🔗 Joining Rebar peer..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=RebarMSP \
+    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@rebar.example.com/msp \
+    cli \
+    peer channel join -b /etc/hyperledger/config/${CHANNEL_NAME}.block
 
-echo "📍 Updating TEST Rebar anchor peers..."
-exec_cli_test \
-  RebarMSP \
-  "$CLI_ARTIFACTS_PATH/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp" \
-  test-peer0.rebar.example.com:9151 \
-  peer channel update \
-    -o test-orderer.example.com:7150 \
-    -c "${CHANNEL_NAME}" \
-    -f "${CLI_ARTIFACTS_PATH}/RebarMSPanchors.tx"
+# ========= STEP 5: Update anchor peers =========
+echo "📍 Updating Shams anchor..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=ShamsMSP \
+    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@shams.example.com/msp \
+    cli \
+    peer channel update \
+        -o orderer.example.com:7050 \
+        -c ${CHANNEL_NAME} \
+        -f /etc/hyperledger/config/ShamsMSPanchors.tx \
+        --tls=false \
+        --clientauth=false
 
-echo "✅ TEST Network started without TLS."
+echo "📍 Updating Rebar anchor..."
+docker exec \
+    -e CORE_PEER_LOCALMSPID=RebarMSP \
+    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_MSPCONFIGPATH=/var/hyperledger/users/Admin@rebar.example.com/msp \
+    cli \
+    peer channel update \
+        -o orderer.example.com:7050 \
+        -c ${CHANNEL_NAME} \
+        -f /etc/hyperledger/config/RebarMSPanchors.tx \
+        --tls=false \
+        --clientauth=false
+
+echo "✅ Test network setup complete with multi-signature policy."
 docker ps --format "table {{.Names}}	{{.Status}}"
