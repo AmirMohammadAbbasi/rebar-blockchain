@@ -13,22 +13,23 @@ services:
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_LISTENPORT=7150
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
-      - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/artifacts/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp
+      - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/config/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp
       - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
-      - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/artifacts/genesis.block
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/config/genesis.block
       - ORDERER_GENERAL_TLS_ENABLED=false
     volumes:
-      - ./artifacts:/etc/hyperledger/artifacts
+      - ./artifacts:/etc/hyperledger/config
+      - ./config/configtx.yaml:/etc/hyperledger/config/configtx.yaml  # override to ensure correct file
     ports:
       - 7150:7150
     networks:
       - fabric_test_net
     healthcheck:
-      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      test: ["CMD", "test", "-f", "/etc/hyperledger/config/genesis.block"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 15s
 
   test-peer0.shams.example.com:
     container_name: test-peer0.shams.example.com
@@ -39,10 +40,11 @@ services:
       - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7151
       - CORE_PEER_LOCALMSPID=ShamsMSP
-      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./artifacts:/etc/hyperledger/artifacts
+      - ./artifacts:/etc/hyperledger/config
+      - ./config/configtx.yaml:/etc/hyperledger/config/configtx.yaml
     ports:
       - 7151:7151
     depends_on:
@@ -51,11 +53,11 @@ services:
     networks:
       - fabric_test_net
     healthcheck:
-      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      test: ["CMD", "test", "-f", "/etc/hyperledger/config/configtx.yaml"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 15s
 
   test-peer0.rebar.example.com:
     container_name: test-peer0.rebar.example.com
@@ -66,10 +68,11 @@ services:
       - CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151
       - CORE_PEER_LISTENADDRESS=0.0.0.0:9151
       - CORE_PEER_LOCALMSPID=RebarMSP
-      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./artifacts:/etc/hyperledger/artifacts
+      - ./artifacts:/etc/hyperledger/config
+      - ./config/configtx.yaml:/etc/hyperledger/config/configtx.yaml
     ports:
       - 9151:9151
     depends_on:
@@ -78,11 +81,11 @@ services:
     networks:
       - fabric_test_net
     healthcheck:
-      test: ["CMD-SHELL", "sleep 2; echo ok"]
+      test: ["CMD", "test", "-f", "/etc/hyperledger/config/configtx.yaml"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 15s
 
   test-cli:
     container_name: test-cli
@@ -95,10 +98,11 @@ services:
       - CORE_PEER_ID=test-cli
       - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
       - CORE_PEER_LOCALMSPID=ShamsMSP
-      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./artifacts:/etc/hyperledger/artifacts
+      - ./artifacts:/etc/hyperledger/config
+      - ./config/configtx.yaml:/etc/hyperledger/config/configtx.yaml
       - ./../chaincode:/opt/gopath/src/github.com/chaincode
     networks:
       - fabric_test_net

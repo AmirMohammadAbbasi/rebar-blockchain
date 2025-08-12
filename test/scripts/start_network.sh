@@ -2,17 +2,24 @@
 set -e
 source ./scripts/env.sh
 
-CHANNEL_NAME="testchannel"
+CLI_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E '^test-cli$|cli$|cli[^/]*$' || true)
+if [ -z "$CLI_CONTAINER" ]; then
+  echo "❌ No CLI container found! Make sure 'docker compose up' started the tools container."
+  exit 1
+fi
 
-# مسیرهای درست MSP داخل کانتینر cli
+# MSP paths
 SHAMS_ADMIN_MSP=/etc/hyperledger/config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
 REBAR_ADMIN_MSP=/etc/hyperledger/config/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp
 
-echo "🧹 Cleaning old artifacts & containers..."
+echo "🧹 Cleaning old artifacts, containers & Docker volumes..."
 docker compose -f docker-compose.yaml down -v --remove-orphans || true
-rm -rf artifacts/*.block artifacts/*.tx crypto-config
+docker volume rm $(docker volume ls -q | grep -E 'dev-peer|orderer|peer') 2>/dev/null || true
+docker volume prune -f
+rm -rf artifacts/*.block artifacts/*.tx config/crypto-config config/genesis.block config/*.block config/*.tx crypto-config
 
-echo "🔨 Generating artifacts..."
+echo "🔨 Generating artifacts for channel: ${CHANNEL_NAME} ..."
+export CHANNEL_NAME=$CHANNEL_NAME
 ./scripts/generate_artifacts.sh
 
 echo "🚀 Starting all containers..."
@@ -21,75 +28,85 @@ docker compose -f docker-compose.yaml up -d
 echo "⏳ Waiting for orderer & peers to be ready..."
 sleep 10
 
-# ========= STEP 1: Create channel configuration transaction with Shams admin =========
+echo "🔍 Validating configtx.yaml and profile RebarChannel..."
+docker exec "$CLI_CONTAINER" sh -c '
+  if [ ! -f /etc/hyperledger/config/configtx.yaml ]; then
+    echo "❌ configtx.yaml not found at /etc/hyperledger/config"
+    exit 1
+  fi
+  if ! grep -q "RebarChannel" /etc/hyperledger/config/configtx.yaml; then
+    echo "❌ Profile RebarChannel not found in configtx.yaml"
+    exit 1
+  fi
+'
+
 echo "📄 STEP 1: Creating channel transaction (.tx) with Shams admin..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=ShamsMSP \
-    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151 \
     -e CORE_PEER_MSPCONFIGPATH=$SHAMS_ADMIN_MSP \
-    cli \
-    sh -c "FABRIC_CFG_PATH=/etc/hyperledger/config configtxgen -profile RebarChannel -outputCreateChannelTx /etc/hyperledger/config/${CHANNEL_NAME}.tx -channelID ${CHANNEL_NAME}"
+    "$CLI_CONTAINER" \
+    sh -c "FABRIC_CFG_PATH=/etc/hyperledger/config configtxgen \
+      -configPath /etc/hyperledger/config \
+      -profile RebarChannel \
+      -outputCreateChannelTx /etc/hyperledger/config/${CHANNEL_NAME}.tx \
+      -channelID ${CHANNEL_NAME}"
 
-# ========= STEP 2: Sign channel tx with Shams admin =========
 echo "✍️ STEP 2: Signing channel tx with Shams admin..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=ShamsMSP \
-    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151 \
     -e CORE_PEER_MSPCONFIGPATH=$SHAMS_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel signconfigtx \
         -f /etc/hyperledger/config/${CHANNEL_NAME}.tx
 
-# ========= STEP 3: Sign channel tx with Rebar admin =========
 echo "✍️ STEP 3: Signing channel tx with Rebar admin..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=RebarMSP \
-    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151 \
     -e CORE_PEER_MSPCONFIGPATH=$REBAR_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel signconfigtx \
         -f /etc/hyperledger/config/${CHANNEL_NAME}.tx
 
-# ========= STEP 4: Submit multi-signed channel creation =========
 echo "🚀 STEP 4: Submitting channel creation..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=ShamsMSP \
-    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151 \
     -e CORE_PEER_MSPCONFIGPATH=$SHAMS_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel create \
-        -o orderer.example.com:7050 \
+        -o test-orderer.example.com:7150 \
         -c ${CHANNEL_NAME} \
         -f /etc/hyperledger/config/${CHANNEL_NAME}.tx \
         --outputBlock /etc/hyperledger/config/${CHANNEL_NAME}.block \
         --tls=false
 
-# ========= STEP 5: Join both peers =========
 echo "🔗 Joining Shams peer..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=ShamsMSP \
-    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151 \
     -e CORE_PEER_MSPCONFIGPATH=$SHAMS_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel join -b /etc/hyperledger/config/${CHANNEL_NAME}.block
 
 echo "🔗 Joining Rebar peer..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=RebarMSP \
-    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151 \
     -e CORE_PEER_MSPCONFIGPATH=$REBAR_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel join -b /etc/hyperledger/config/${CHANNEL_NAME}.block
 
-# ========= STEP 6: Update anchor peers =========
 echo "📍 Updating Shams anchor..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=ShamsMSP \
-    -e CORE_PEER_ADDRESS=peer0.shams.example.com:7051 \
+    -e CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151 \
     -e CORE_PEER_MSPCONFIGPATH=$SHAMS_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel update \
-        -o orderer.example.com:7050 \
+        -o test-orderer.example.com:7150 \
         -c ${CHANNEL_NAME} \
         -f /etc/hyperledger/config/ShamsMSPanchors.tx \
         --tls=false
@@ -97,11 +114,11 @@ docker exec \
 echo "📍 Updating Rebar anchor..."
 docker exec \
     -e CORE_PEER_LOCALMSPID=RebarMSP \
-    -e CORE_PEER_ADDRESS=peer0.rebar.example.com:9051 \
+    -e CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151 \
     -e CORE_PEER_MSPCONFIGPATH=$REBAR_ADMIN_MSP \
-    cli \
+    "$CLI_CONTAINER" \
     peer channel update \
-        -o orderer.example.com:7050 \
+        -o test-orderer.example.com:7150 \
         -c ${CHANNEL_NAME} \
         -f /etc/hyperledger/config/RebarMSPanchors.tx \
         --tls=false
