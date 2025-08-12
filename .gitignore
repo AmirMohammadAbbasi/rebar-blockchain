@@ -3,3 +3,5 @@
 *node_modules*
 *.tx
 *.block
+/test/config/artifacts/
+/test/artifacts/

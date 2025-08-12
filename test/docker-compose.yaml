@@ -14,13 +14,12 @@ services:
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_LISTENPORT=7150
       - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
-      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_LOCALMSPDIR=/etc/hyperledger/artifacts/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp
       - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
-      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/genesis.block
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/etc/hyperledger/artifacts/genesis.block
       - ORDERER_GENERAL_TLS_ENABLED=false
     volumes:
-      - ./config/artifacts/genesis.block:/var/hyperledger/orderer/genesis.block
-      - ./config/artifacts/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/var/hyperledger/orderer/msp
+      - ./artifacts:/etc/hyperledger/artifacts
     ports:
       - 7150:7150
     networks:
@@ -36,10 +35,10 @@ services:
       - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
       - CORE_PEER_LISTENADDRESS=0.0.0.0:7151
       - CORE_PEER_LOCALMSPID=ShamsMSP
-      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./config/artifacts/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - ./artifacts:/etc/hyperledger/artifacts
     ports:
       - 7151:7151
     depends_on:
@@ -57,10 +56,10 @@ services:
       - CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151
       - CORE_PEER_LISTENADDRESS=0.0.0.0:9151
       - CORE_PEER_LOCALMSPID=RebarMSP
-      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./config/artifacts/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+      - ./artifacts:/etc/hyperledger/artifacts
     ports:
       - 9151:9151
     depends_on:
@@ -76,7 +75,7 @@ services:
     ports:
       - "7054:7054"
     volumes:
-      - ./config/artifacts/crypto-config/peerOrganizations/shams.example.com/ca:/etc/hyperledger/fabric-ca-server
+      - ./artifacts/crypto-config/peerOrganizations/shams.example.com/ca:/etc/hyperledger/fabric-ca-server
     networks:
       - fabric_test_net
 
@@ -87,7 +86,7 @@ services:
     ports:
       - "8054:8054"
     volumes:
-      - ./config/artifacts/crypto-config/peerOrganizations/rebar.example.com/ca:/etc/hyperledger/fabric-ca-server
+      - ./artifacts/crypto-config/peerOrganizations/rebar.example.com/ca:/etc/hyperledger/fabric-ca-server
     networks:
       - fabric_test_net
 
@@ -103,10 +102,10 @@ services:
       - CORE_PEER_ID=test-cli
       - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
       - CORE_PEER_LOCALMSPID=ShamsMSP
-      - CORE_PEER_MSPCONFIGPATH=/workspace/config/artifacts/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
+      - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./:/workspace
+      - ./artifacts:/etc/hyperledger/artifacts
       - ./../chaincode:/opt/gopath/src/github.com/chaincode
     networks:
       - fabric_test_net
@@ -115,7 +114,7 @@ services:
       - test-peer0.rebar.example.com
       - test-orderer.example.com
 
-  # === Test Runner (e.g., Jest/Mocha) ===
+  # === Test Runner ===
   test-runner:
     image: node:18
     container_name: test-runner
@@ -126,6 +125,7 @@ services:
       - CORE_PEER_TLS_ENABLED=false
       - CORE_PEER_LOCALMSPID=ShamsMSP
     volumes:
+      - ./artifacts:/etc/hyperledger/artifacts
       - ./:/workspace
     networks:
       - fabric_test_net
