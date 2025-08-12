@@ -1,0 +1,134 @@
+version: '3.7'
+
+networks:
+  fabric_test_net:
+    external: true
+
+services:
+  # === Orderer (TEST) ===
+  test-orderer.example.com:
+    container_name: test-orderer.example.com
+    image: hyperledger/fabric-orderer:2.5
+    platform: linux/amd64
+    environment:
+      - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
+      - ORDERER_GENERAL_LISTENPORT=7150
+      - ORDERER_GENERAL_LOCALMSPID=OrdererMSP
+      - ORDERER_GENERAL_LOCALMSPDIR=/var/hyperledger/orderer/msp
+      - ORDERER_GENERAL_BOOTSTRAPMETHOD=file
+      - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/genesis.block
+      - ORDERER_GENERAL_TLS_ENABLED=false
+    volumes:
+      - ./config/artifacts/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./config/artifacts/crypto-config/ordererOrganizations/example.com/orderers/orderer.example.com/msp:/var/hyperledger/orderer/msp
+    ports:
+      - 7150:7150
+    networks:
+      - fabric_test_net
+
+  # === Peer0 Shams (TEST) ===
+  test-peer0.shams.example.com:
+    container_name: test-peer0.shams.example.com
+    image: hyperledger/fabric-peer:2.5
+    platform: linux/amd64
+    environment:
+      - CORE_PEER_ID=test-peer0.shams.example.com
+      - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7151
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=false
+    volumes:
+      - ./config/artifacts/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+    ports:
+      - 7151:7151
+    depends_on:
+      - test-orderer.example.com
+    networks:
+      - fabric_test_net
+
+  # === Peer0 Rebar (TEST) ===
+  test-peer0.rebar.example.com:
+    container_name: test-peer0.rebar.example.com
+    image: hyperledger/fabric-peer:2.5
+    platform: linux/amd64
+    environment:
+      - CORE_PEER_ID=test-peer0.rebar.example.com
+      - CORE_PEER_ADDRESS=test-peer0.rebar.example.com:9151
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9151
+      - CORE_PEER_LOCALMSPID=RebarMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=false
+    volumes:
+      - ./config/artifacts/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+    ports:
+      - 9151:9151
+    depends_on:
+      - test-orderer.example.com
+    networks:
+      - fabric_test_net
+
+  # === Fabric CAs (TEST) ===
+  test-ca.shams.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: test-ca.shams.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "7054:7054"
+    volumes:
+      - ./config/artifacts/crypto-config/peerOrganizations/shams.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_test_net
+
+  test-ca.rebar.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: test-ca.rebar.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "8054:8054"
+    volumes:
+      - ./config/artifacts/crypto-config/peerOrganizations/rebar.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_test_net
+
+  # === CLI (TEST) ===
+  test-cli:
+    container_name: test-cli
+    image: hyperledger/fabric-tools:2.5
+    platform: linux/amd64
+    tty: true
+    stdin_open: true
+    working_dir: /workspace
+    environment:
+      - CORE_PEER_ID=test-cli
+      - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_MSPCONFIGPATH=/workspace/config/artifacts/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
+      - CORE_PEER_TLS_ENABLED=false
+    volumes:
+      - ./:/workspace
+      - ./../chaincode:/opt/gopath/src/github.com/chaincode
+    networks:
+      - fabric_test_net
+    depends_on:
+      - test-peer0.shams.example.com
+      - test-peer0.rebar.example.com
+      - test-orderer.example.com
+
+  # === Test Runner (e.g., Jest/Mocha) ===
+  test-runner:
+    image: node:18
+    container_name: test-runner
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    environment:
+      - CORE_PEER_TLS_ENABLED=false
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+    volumes:
+      - ./:/workspace
+    networks:
+      - fabric_test_net
+    depends_on:
+      - test-cli
+    command: ["npm", "test", "--prefix", "integration"]

@@ -1,0 +1,104 @@
+---
+Organizations:
+  - &ShamsOrg
+    Name: ShamsOrg
+    ID: ShamsMSP
+    MSPDir: config/artifacts/crypto-config/peerOrganizations/shams.example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('ShamsMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('ShamsMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('ShamsMSP.admin')"
+    AnchorPeers:
+      - Host: test-peer0.shams.example.com
+        Port: 7151
+
+  - &RebarOrg
+    Name: RebarOrg
+    ID: RebarMSP
+    MSPDir: config/artifacts/crypto-config/peerOrganizations/rebar.example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('RebarMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('RebarMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('RebarMSP.admin')"
+    AnchorPeers:
+      - Host: test-peer0.rebar.example.com
+        Port: 9151
+
+Orderer: &OrdererDefaults
+  OrdererType: solo
+  Addresses:
+    - test-orderer.example.com:7150
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Policies:
+    Readers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Writers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Admins:
+      Type: Signature
+      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+    BlockValidation:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Writers:
+      Type: Signature
+      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+    Admins:
+      Type: Signature
+      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+
+Profiles:
+  TestGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *ShamsOrg
+        - *RebarOrg
+    Consortiums:
+      TestConsortium:
+        Organizations:
+          - *ShamsOrg
+          - *RebarOrg
+
+  TestChannel:
+    Consortium: TestConsortium
+    <<: *ChannelDefaults
+    Application:
+      Organizations:
+        - *ShamsOrg
+        - *RebarOrg
+      Policies:
+        Readers:
+          Type: Signature
+          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+        Writers:
+          Type: Signature
+          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+        Admins:
+          Type: Signature
+          Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
