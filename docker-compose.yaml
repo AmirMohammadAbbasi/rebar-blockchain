@@ -2,7 +2,7 @@ version: '3.7'
 
 networks:
   fabric_net:
-    driver: bridge
+    external: true
 
 services:
   orderer.example.com:
@@ -37,11 +37,9 @@ services:
   peer0.shams.example.com:
     container_name: peer0.shams.example.com
     image: hyperledger/fabric-peer:2.5
-    platform: linux/amd64
     environment:
       - CORE_PEER_ID=peer0.shams.example.com
       - CORE_PEER_ADDRESS=peer0.shams.example.com:7051
-      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
       - CORE_PEER_LOCALMSPID=ShamsMSP
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=true
@@ -66,11 +64,9 @@ services:
   peer0.rebar.example.com:
     container_name: peer0.rebar.example.com
     image: hyperledger/fabric-peer:2.5
-    platform: linux/amd64
     environment:
       - CORE_PEER_ID=peer0.rebar.example.com
       - CORE_PEER_ADDRESS=peer0.rebar.example.com:9051
-      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
       - CORE_PEER_LOCALMSPID=RebarMSP
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=true
@@ -95,31 +91,23 @@ services:
   cli:
     container_name: cli
     image: hyperledger/fabric-tools:2.5
-    platform: linux/amd64
     tty: true
     stdin_open: true
-    working_dir: /workspace
+    environment:
+      - CORE_PEER_ID=cli
+      - CORE_PEER_ADDRESS=peer0.shams.example.com:7051
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=true
+      - CORE_PEER_TLS_CERT_FILE=/var/hyperledger/peer/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=/var/hyperledger/peer/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=/var/hyperledger/peer/tls/ca.crt
     volumes:
+      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/tls:/var/hyperledger/peer/tls
       - ./:/workspace
+    working_dir: /workspace
     networks:
       - fabric_net
     depends_on:
-      - orderer.example.com
       - peer0.shams.example.com
-      - peer0.rebar.example.com
-
-  test-runner:
-    image: node:18
-    platform: linux/amd64
-    container_name: test-runner
-    working_dir: /workspace
-    volumes:
-      - ./:/workspace
-    networks:
-      - fabric_net
-    depends_on:
-      - orderer.example.com
-      - peer0.shams.example.com
-      - peer0.rebar.example.com
-    tty: true
-    stdin_open: true

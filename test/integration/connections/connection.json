@@ -59,28 +59,28 @@
   },
   "certificateAuthorities": {
     "ca.org1.example.com": {
-      "url": "https://localhost:7054",
+      "url": "http://localhost:7054",
       "caName": "ca-org1",
       "tlsCACerts": {
         "path": "/var/hyperledger/peer/tls/org1-ca.crt"
       }
     },
     "ca.org2.example.com": {
-      "url": "https://localhost:8054",
+      "url": "http://localhost:8054",
       "caName": "ca-org2",
       "tlsCACerts": {
         "path": "/var/hyperledger/peer/tls/org2-ca.crt"
       }
     },
     "ca.org3.example.com": {
-      "url": "https://localhost:9054",
+      "url": "http://localhost:9054",
       "caName": "ca-org3",
       "tlsCACerts": {
         "path": "/var/hyperledger/peer/tls/org3-ca.crt"
       }
     },
     "ca.org4.example.com": {
-      "url": "https://localhost:10054",
+      "url": "http://localhost:10054",
       "caName": "ca-org4",
       "tlsCACerts": {
         "path": "/var/hyperledger/peer/tls/org4-ca.crt"

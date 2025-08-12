@@ -2,7 +2,7 @@
 const chai = require("chai");
 const expect = chai.expect;
 const { ChaincodeMockStub } = require("fabric-shim");
-const LifecycleContract = require("../chaincode/lib/lifecycleContract");
+const LifecycleContract = require("../lib/lifecycleContract");
 
 describe("LifecycleContract", () => {
   let contract, stub;

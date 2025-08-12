@@ -3,9 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "🛑 Stopping Fabric & CA containers..."
-docker compose -f "$ROOT_DIR/docker-compose.yaml" \
-               -f "$ROOT_DIR/docker-compose.test-ca.yml" down -v || true
+echo "🛑 Stopping Fabric main & test containers..."
+docker compose -f "$ROOT_DIR/docker-compose.yaml" down -v || true
+docker compose -f "$ROOT_DIR/docker-compose.test.yaml" down -v || true
 
 # پاک کردن همه Volumeهای مربوط به CA
 echo "🧹 Cleaning CA-related Docker volumes..."
@@ -25,19 +25,18 @@ rm -rf "$ROOT_DIR/test/integration/wallet" || true
 echo "🌐 Ensuring external network 'fabric_net' exists..."
 docker network create fabric_net || true
 
-# راه‌اندازی مجدد سرویس‌ها
-echo "🚀 Starting Fabric & CA containers fresh..."
-docker compose -f "$ROOT_DIR/docker-compose.yaml" \
-               -f "$ROOT_DIR/docker-compose.test-ca.yml" up -d
+# راه‌اندازی مجدد سرویس‌های TLS اصلی
+echo "🚀 Starting main Fabric TLS network..."
+docker compose -f "$ROOT_DIR/docker-compose.yaml" up -d
 
-echo "⏳ Waiting 5 seconds for containers to stabilize..."
+echo "⏳ Waiting 5 seconds for network to stabilize..."
 sleep 5
 
-# اجرای تست‌ها داخل کانتینر test-runner
-echo "🧪 Running integration tests inside Docker..."
-docker exec test-runner sh -c "
-  npm install --prefix /workspace/test/integration &&
-  npm test --prefix /workspace/test/integration
-"
+# اجرای تست‌ها از طریق محیط تست Non-TLS
+echo "🧪 Running integration tests..."
+docker compose -f "$ROOT_DIR/docker-compose.test.yaml" up --abort-on-container-exit
+
+# پاکسازی محیط تست
+docker compose -f "$ROOT_DIR/docker-compose.test.yaml" down -v
 
 echo "✅ Environment reset and tests completed."

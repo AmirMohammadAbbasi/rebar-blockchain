@@ -1,0 +1,89 @@
+version: '3.7'
+
+networks:
+  fabric_net:
+    external: true
+
+services:
+  ca.shams.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.shams.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "7054:7054"
+    volumes:
+      - ./config/crypto-config/peerOrganizations/shams.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_net
+
+  ca.rebar.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.rebar.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "8054:8054"
+    volumes:
+      - ./config/crypto-config/peerOrganizations/rebar.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_net
+
+  ca.finance.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.finance.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "9054:9054"
+    volumes:
+      - ./config/crypto-config/peerOrganizations/finance.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_net
+
+  ca.lifecycle.example.com:
+    image: hyperledger/fabric-ca:1.5
+    container_name: ca.lifecycle.example.com
+    command: sh -c "fabric-ca-server start -b admin:adminpw -H /etc/hyperledger/fabric-ca-server"
+    ports:
+      - "10054:10054"
+    volumes:
+      - ./config/crypto-config/peerOrganizations/lifecycle.example.com/ca:/etc/hyperledger/fabric-ca-server
+    networks:
+      - fabric_net
+
+  test-runner:
+    image: node:18
+    container_name: test-runner
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    environment:
+      - CORE_PEER_TLS_ENABLED=false
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+    volumes:
+      - ./:/workspace
+    networks:
+      - fabric_net
+    depends_on:
+      - ca.shams.example.com
+      - ca.rebar.example.com
+      - ca.finance.example.com
+      - ca.lifecycle.example.com
+    command: ["npm", "test", "--prefix", "test/integration"]
+
+  cli-test:
+    container_name: cli-test
+    image: hyperledger/fabric-tools:2.5
+    tty: true
+    stdin_open: true
+    environment:
+      - CORE_PEER_ID=cli-test
+      - CORE_PEER_ADDRESS=peer0.shams.example.com:7051
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
+      - CORE_PEER_TLS_ENABLED=false
+    volumes:
+      - ./:/workspace
+    working_dir: /workspace
+    networks:
+      - fabric_net
+    depends_on:
+      - peer0.shams.example.com

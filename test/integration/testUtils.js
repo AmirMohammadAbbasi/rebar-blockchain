@@ -1,56 +1,121 @@
 "use strict";
 
-const fs = require("fs");
-const path = require("path");
 const { Wallets } = require("fabric-network");
+const FabricCAServices = require("fabric-ca-client");
+const path = require("path");
 
-const baseCryptoPath = "/workspace/config/crypto-config"; // مسیر mount شده در test-runner
+const orgs = [
+  {
+    name: "Shams",
+    mspId: "ShamsMSP",
+    caURL: "http://ca.shams.example.com:7054",
+    adminUserId: "admin",
+    adminPassword: "adminpw",
+  },
+  {
+    name: "Rebar",
+    mspId: "RebarMSP",
+    caURL: "http://ca.rebar.example.com:8054",
+    adminUserId: "admin",
+    adminPassword: "adminpw",
+  },
+  {
+    name: "Finance",
+    mspId: "FinanceMSP",
+    caURL: "http://ca.finance.example.com:9054",
+    adminUserId: "admin",
+    adminPassword: "adminpw",
+  },
+  {
+    name: "Lifecycle",
+    mspId: "LifecycleMSP",
+    caURL: "http://ca.lifecycle.example.com:10054",
+    adminUserId: "admin",
+    adminPassword: "adminpw",
+  },
+];
 
-async function ensureIdentity(label, mspId, certPath, keyPath) {
-  const walletPath = path.resolve(__dirname, "wallet");
-  const wallet = await Wallets.newFileSystemWallet(walletPath);
+async function enrollAdmin(ca, wallet, mspId, adminUserId, adminPassword) {
+  const identity = await wallet.get(adminUserId);
+  if (identity) {
+    console.log(`Admin identity for ${mspId} already exists in wallet`);
+    return;
+  }
+  const enrollment = await ca.enroll({
+    enrollmentID: adminUserId,
+    enrollmentSecret: adminPassword,
+  });
+  const x509Identity = {
+    credentials: {
+      certificate: enrollment.certificate,
+      privateKey: enrollment.key.toBytes(),
+    },
+    mspId,
+    type: "X.509",
+  };
+  await wallet.put(adminUserId, x509Identity);
+  console.log(`✅ Admin identity for ${mspId} enrolled and imported to wallet`);
+}
 
-  const exists = await wallet.get(label);
-  if (exists) {
+async function registerAndEnrollUser(ca, wallet, mspId, userId) {
+  const userIdentity = await wallet.get(userId);
+  if (userIdentity) {
+    console.log(`User identity ${userId} already exists in wallet`);
     return;
   }
 
-  const cert = fs.readFileSync(certPath, "utf8");
-  const key = fs.readFileSync(keyPath, "utf8");
+  const adminIdentity = await wallet.get("admin");
+  if (!adminIdentity) {
+    throw new Error(`Admin identity not found in wallet for MSP ${mspId}`);
+  }
 
-  await wallet.put(label, {
-    credentials: { certificate: cert, privateKey: key },
+  const provider = wallet.getProviderRegistry().getProvider(adminIdentity.type);
+  const adminUser = await provider.getUserContext(adminIdentity, "admin");
+
+  // affiliation حذف شده
+  const secret = await ca.register(
+    { enrollmentID: userId, role: "client" },
+    adminUser
+  );
+  const enrollment = await ca.enroll({
+    enrollmentID: userId,
+    enrollmentSecret: secret,
+  });
+  const x509Identity = {
+    credentials: {
+      certificate: enrollment.certificate,
+      privateKey: enrollment.key.toBytes(),
+    },
     mspId,
     type: "X.509",
-  });
-  console.log(`✔ Added missing identity: ${label}`);
+  };
+  await wallet.put(userId, x509Identity);
+  console.log(`✅ User identity ${userId} enrolled and imported to wallet`);
 }
 
 async function ensureAllTestIdentities() {
-  await ensureIdentity(
-    "ShamsUser",
-    "Org1MSP",
-    `${baseCryptoPath}/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem`,
-    `${baseCryptoPath}/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/keystore/priv_sk`
-  );
-  await ensureIdentity(
-    "RebarUser",
-    "Org2MSP",
-    `${baseCryptoPath}/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/signcerts/User1@org2.example.com-cert.pem`,
-    `${baseCryptoPath}/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/keystore/priv_sk`
-  );
-  await ensureIdentity(
-    "FinanceUser",
-    "Org3MSP",
-    `${baseCryptoPath}/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp/signcerts/User1@org3.example.com-cert.pem`,
-    `${baseCryptoPath}/peerOrganizations/org3.example.com/users/User1@org3.example.com/msp/keystore/priv_sk`
-  );
-  await ensureIdentity(
-    "LifecycleUser",
-    "Org4MSP",
-    `${baseCryptoPath}/peerOrganizations/org4.example.com/users/User1@org4.example.com/msp/signcerts/User1@org4.example.com-cert.pem`,
-    `${baseCryptoPath}/peerOrganizations/org4.example.com/users/User1@org4.example.com/msp/keystore/priv_sk`
-  );
+  const walletPath = path.join(__dirname, "wallet");
+  const wallet = await Wallets.newFileSystemWallet(walletPath);
+
+  for (let org of orgs) {
+    const ca = new FabricCAServices(org.caURL, {
+      trustedRoots: [],
+      verify: false,
+    });
+
+    await enrollAdmin(
+      ca,
+      wallet,
+      org.mspId,
+      org.adminUserId,
+      org.adminPassword
+    );
+
+    // affiliation حذف شده
+    await registerAndEnrollUser(ca, wallet, org.mspId, `${org.name}User`);
+  }
 }
 
-module.exports = { ensureAllTestIdentities };
+module.exports = {
+  ensureAllTestIdentities,
+};

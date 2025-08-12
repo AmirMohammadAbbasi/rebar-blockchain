@@ -1,13 +1,6 @@
-"use strict";
+'use strict';
 
-const ShamsContract = require("./lib/shamsContract");
-const RebarContract = require("./lib/rebarContract");
-const FinanceContract = require("./lib/financeContract");
-const LifecycleContract = require("./lib/lifecycleContract");
+const ShamsContract = require('./lib/shamsContract');
 
-module.exports.contracts = [
-  ShamsContract,
-  RebarContract,
-  FinanceContract,
-  LifecycleContract,
-];
+module.exports.ShamsContract = ShamsContract;
+module.exports.contracts = [ new ShamsContract() ];

@@ -1,86 +1,188 @@
-"use strict";
-const { Contract } = require("fabric-contract-api");
-const crypto = require("crypto");
+'use strict';
+
+const { Contract } = require('fabric-contract-api');
 
 class ShamsContract extends Contract {
   constructor() {
-    super("rebar.shams.contract");
+    super('rebar.shams.contract');
+  }
+
+  async Init(ctx) {
+    console.info('Ledger initialized for rebar lifecycle');
+    return;
+  }
+
+  _createShamsObject(input) {
+    return {
+      docType: 'shams',
+      id: input.id,
+      origin: input.origin || '',
+      specs: input.specs || {},
+      manufactureDate: input.manufactureDate || '',
+      producer: input.producer || '',
+      additional: input.additional || {}
+    };
+  }
+
+  _createBundleObject(input) {
+    return {
+      docType: 'bundle',
+      id: input.id,
+      shamsId: input.shamsId,
+      weight: input.weight || 0,
+      length: input.length || 0,
+      producedAt: input.producedAt || '',
+      status: input.status || 'Created',
+      owner: input.owner || '',
+      metadata: input.metadata || {}
+    };
   }
 
   _getClientOrgId(ctx) {
-    return ctx.clientIdentity.getMSPID();
+    const cid = ctx.clientIdentity;
+    const mspid = cid.getMSPID();
+    return mspid;
   }
 
-  _hashSensitive(data) {
-    return crypto
-      .createHash("sha256")
-      .update(JSON.stringify(data))
-      .digest("hex");
-  }
-
-  async registerShamsBatch(ctx, shamsJson, purchaseDetailsJson) {
+  async CreateShams(ctx, shamsJson) {
     const callerMsp = this._getClientOrgId(ctx);
-    if (callerMsp !== "ShamsMSP") {
-      throw new Error("Only ShamsMSP can register raw shams batches");
+    if (callerMsp !== 'ShamsMSP') {
+      throw new Error('CreateShams: Only ShamsMSP can create raw shams records');
     }
 
-    const shams = JSON.parse(shamsJson);
-    const id = `SHAMS_${shams.batchNo}`;
+    const input = JSON.parse(shamsJson);
+    if (!input.id) throw new Error('CreateShams: id is required');
 
-    if (await ctx.stub.getState(id).then((b) => b && b.length > 0)) {
-      throw new Error(`Shams batch ${shams.batchNo} already exists`);
+    const exists = await ctx.stub.getState(input.id);
+    if (exists && exists.length > 0) {
+      throw new Error(`CreateShams: asset ${input.id} already exists`);
     }
 
-    const purchaseDetails = JSON.parse(purchaseDetailsJson);
-    const shamsRecord = {
-      docType: "shams",
-      ...shams,
-      purchaseDetailsHash: this._hashSensitive(purchaseDetails),
-      registeredBy: callerMsp,
-      registeredAt: new Date().toISOString(),
+    const shamsObj = this._createShamsObject(input);
+    await ctx.stub.putState(shamsObj.id, Buffer.from(JSON.stringify(shamsObj)));
+    await ctx.stub.setEvent('ShamsCreated', Buffer.from(JSON.stringify({ id: shamsObj.id })));
+    return JSON.stringify(shamsObj);
+  }
+
+  async CreateMilgardBundle(ctx, bundleJson) {
+    const callerMsp = this._getClientOrgId(ctx);
+    if (callerMsp !== 'RebarMSP') {
+      throw new Error('CreateMilgardBundle: Only RebarMSP can create bundles');
+    }
+
+    const input = JSON.parse(bundleJson);
+    if (!input.id || !input.shamsId) throw new Error('CreateMilgardBundle: id and shamsId are required');
+
+    const shamsState = await ctx.stub.getState(input.shamsId);
+    if (!shamsState || shamsState.length === 0) {
+      throw new Error(`CreateMilgardBundle: referenced shams ${input.shamsId} does not exist`);
+    }
+
+    const bundleExists = await ctx.stub.getState(input.id);
+    if (bundleExists && bundleExists.length > 0) {
+      throw new Error(`CreateMilgardBundle: bundle ${input.id} already exists`);
+    }
+
+    const bundleObj = this._createBundleObject(input);
+    bundleObj.owner = input.owner || callerMsp;
+
+    await ctx.stub.putState(bundleObj.id, Buffer.from(JSON.stringify(bundleObj)));
+    await ctx.stub.setEvent('BundleCreated', Buffer.from(JSON.stringify({ id: bundleObj.id, shamsId: bundleObj.shamsId })));
+
+    return JSON.stringify(bundleObj);
+  }
+
+  async UpdateBundleStatus(ctx, bundleId, newStatus, additionalJson) {
+    const callerMsp = this._getClientOrgId(ctx);
+    const allowed = ['TransportMSP', 'RebarMSP', 'ShamsMSP', 'CustomerMSP'];
+    if (!allowed.includes(callerMsp)) {
+      throw new Error('UpdateBundleStatus: MSP not authorized to update status');
+    }
+
+    const bundleBytes = await ctx.stub.getState(bundleId);
+    if (!bundleBytes || bundleBytes.length === 0) {
+      throw new Error(`UpdateBundleStatus: bundle ${bundleId} does not exist`);
+    }
+
+    const bundle = JSON.parse(bundleBytes.toString());
+    const prevStatus = bundle.status;
+    bundle.status = newStatus;
+    if (additionalJson) {
+      try {
+        const add = JSON.parse(additionalJson);
+        bundle.metadata = { ...(bundle.metadata || {}), ...add };
+      } catch (err) {
+        throw new Error('UpdateBundleStatus: additionalJson must be valid JSON');
+      }
+    }
+
+    const time = new Date().toISOString();
+    bundle.metadata = bundle.metadata || {};
+    bundle.metadata.lastUpdated = { by: callerMsp, at: time, prevStatus };
+
+    await ctx.stub.putState(bundleId, Buffer.from(JSON.stringify(bundle)));
+    await ctx.stub.setEvent('BundleStatusUpdated', Buffer.from(JSON.stringify({ id: bundleId, status: newStatus })));
+
+    return JSON.stringify(bundle);
+  }
+
+  async QueryBundleHistory(ctx, bundleId) {
+    const iterator = await ctx.stub.getHistoryForKey(bundleId);
+    const results = [];
+    while (true) {
+      const res = await iterator.next();
+      if (res.value) {
+        const tx = {
+          txId: res.value.txId,
+          timestamp: res.value.timestamp,
+          isDelete: res.value.isDelete,
+          value: null
+        };
+        if (res.value.value && res.value.value.length > 0) {
+          try {
+            tx.value = JSON.parse(res.value.value.toString('utf8'));
+          } catch (e) {
+            tx.value = res.value.value.toString('utf8');
+          }
+        }
+        results.push(tx);
+      }
+      if (res.done) {
+        await iterator.close();
+        break;
+      }
+    }
+    return JSON.stringify(results);
+  }
+
+  async QueryAllBundles(ctx) {
+    const queryString = {
+      selector: {
+        docType: 'bundle'
+      }
     };
-
-    await ctx.stub.putState(id, Buffer.from(JSON.stringify(shamsRecord)));
-    await ctx.stub.setEvent(
-      "ShamsRegistered",
-      Buffer.from(JSON.stringify({ id }))
-    );
-    return shamsRecord;
+    const iterator = await ctx.stub.getQueryResult(JSON.stringify(queryString));
+    const results = [];
+    while (true) {
+      const res = await iterator.next();
+      if (res.value) {
+        const record = JSON.parse(res.value.value.toString('utf8'));
+        results.push(record);
+      }
+      if (res.done) {
+        await iterator.close();
+        break;
+      }
+    }
+    return JSON.stringify(results);
   }
 
-  async confirmShamsQualityAndTriggerPayment(ctx, shamsId, qualityReportJson) {
-    const callerMsp = this._getClientOrgId(ctx);
-    if (callerMsp !== "ShamsMSP" && callerMsp !== "RebarMSP") {
-      throw new Error("Not authorized to confirm quality");
+  async ReadBundle(ctx, bundleId) {
+    const b = await ctx.stub.getState(bundleId);
+    if (!b || b.length === 0) {
+      throw new Error(`ReadBundle: bundle ${bundleId} does not exist`);
     }
-
-    const asset = await ctx.stub.getState(shamsId);
-    if (!asset || asset.length === 0)
-      throw new Error(`Shams ${shamsId} not found`);
-    const record = JSON.parse(asset.toString());
-
-    const qualityReport = JSON.parse(qualityReportJson);
-    record.qualityReportHash = this._hashSensitive(qualityReport);
-    record.qualityConfirmedAt = new Date().toISOString();
-    await ctx.stub.putState(shamsId, Buffer.from(JSON.stringify(record)));
-
-    await ctx.stub.setEvent(
-      "QualityConfirmed",
-      Buffer.from(JSON.stringify({ shamsId }))
-    );
-
-    // شبیه‌سازی قرارداد هوشمند پرداخت به تأمین‌کننده
-    await ctx.stub.setEvent(
-      "PaymentTriggered",
-      Buffer.from(
-        JSON.stringify({
-          shamsId,
-          action: "ReleasePaymentToSupplier",
-        })
-      )
-    );
-
-    return record;
+    return b.toString();
   }
 }
 

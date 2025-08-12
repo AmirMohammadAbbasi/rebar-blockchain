@@ -14,8 +14,3 @@ export TOOLS_IMG=hyperledger/fabric-tools:2.5
 
 # پیکربندی configtxgen و cryptogen درون کانتینر
 export FABRIC_CFG_PATH=/opt/gopath/config
-
-# فایل‌های TLS CA درون کانتینر - Adjust اگر مسیر متفاوت بود
-export ORDERER_CA=/var/hyperledger/tls/ca.crt
-export PEER0_SHAMS_CA=/var/hyperledger/tls/ca.crt
-export PEER0_REBAR_CA=/var/hyperledger/tls/ca.crt
