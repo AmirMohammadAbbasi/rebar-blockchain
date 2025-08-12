@@ -4,8 +4,9 @@ source ./scripts/env.sh
 
 CHANNEL_NAME="testchannel"
 
-SHAMS_ADMIN_MSP=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
-REBAR_ADMIN_MSP=/etc/hyperledger/artifacts/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp
+# مسیرهای درست MSP داخل کانتینر cli
+SHAMS_ADMIN_MSP=/etc/hyperledger/config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
+REBAR_ADMIN_MSP=/etc/hyperledger/config/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp
 
 echo "🧹 Cleaning old artifacts & containers..."
 docker compose -f docker-compose.yaml down -v --remove-orphans || true
