@@ -14,7 +14,9 @@ describe("Integration - ShamsContract", function () {
 
   it("should register a shams batch (success)", async () => {
     const gateway = await connectAs("ShamsUser");
-    const network = await gateway.getNetwork("rebar-channel");
+    const network = await gateway.getNetwork(
+      process.env.CHANNEL_NAME || "testchannel"
+    );
     const contract = network.getContract("rebarcc", "ShamsContract");
 
     const shams = {
@@ -36,7 +38,9 @@ describe("Integration - ShamsContract", function () {
 
   it("should fail for non-ShamsMSP user", async () => {
     const gateway = await connectAs("RebarUser");
-    const network = await gateway.getNetwork("rebar-channel");
+    const network = await gateway.getNetwork(
+      process.env.CHANNEL_NAME || "testchannel"
+    );
     const contract = network.getContract("rebarcc", "ShamsContract");
 
     try {

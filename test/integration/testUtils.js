@@ -1,8 +1,9 @@
 "use strict";
 
-const { Wallets } = require("fabric-network");
 const FabricCAServices = require("fabric-ca-client");
 const path = require("path");
+const { Gateway, Wallets } = require("fabric-network");
+const fs = require("fs");
 
 const orgs = [
   {
@@ -19,20 +20,20 @@ const orgs = [
     adminUserId: "admin",
     adminPassword: "adminpw",
   },
-  {
-    name: "Finance",
-    mspId: "FinanceMSP",
-    caURL: "http://ca.finance.example.com:9054",
-    adminUserId: "admin",
-    adminPassword: "adminpw",
-  },
-  {
-    name: "Lifecycle",
-    mspId: "LifecycleMSP",
-    caURL: "http://ca.lifecycle.example.com:10054",
-    adminUserId: "admin",
-    adminPassword: "adminpw",
-  },
+  // {
+  //   name: "Finance",
+  //   mspId: "FinanceMSP",
+  //   caURL: "http://ca.finance.example.com:9054",
+  //   adminUserId: "admin",
+  //   adminPassword: "adminpw",
+  // },
+  // {
+  //   name: "Lifecycle",
+  //   mspId: "LifecycleMSP",
+  //   caURL: "http://ca.lifecycle.example.com:10054",
+  //   adminUserId: "admin",
+  //   adminPassword: "adminpw",
+  // },
 ];
 
 async function enrollAdmin(ca, wallet, mspId, adminUserId, adminPassword) {
@@ -116,6 +117,25 @@ async function ensureAllTestIdentities() {
   }
 }
 
+async function connectAs(identityLabel) {
+  await ensureAllTestIdentities(); // هویت‌ها رو بساز اگه نیستند
+
+  const walletPath = path.join(__dirname, "wallet");
+  const wallet = await Wallets.newFileSystemWallet(walletPath);
+
+  const ccpPath = path.resolve(__dirname, "connections", "connection.json");
+  const ccp = JSON.parse(fs.readFileSync(ccpPath, "utf8"));
+
+  const gateway = new Gateway();
+  await gateway.connect(ccp, {
+    wallet,
+    identity: identityLabel,
+    discovery: { enabled: true, asLocalhost: true },
+  });
+  return gateway;
+}
+
 module.exports = {
   ensureAllTestIdentities,
+  connectAs,
 };

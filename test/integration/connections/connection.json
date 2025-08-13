@@ -1,0 +1,35 @@
+{
+  "name": "rebar-test-network",
+  "version": "1.0.0",
+  "client": {
+    "connection": {
+      "timeout": {
+        "peer": { "endorser": "300" },
+        "orderer": "300"
+      }
+    }
+  },
+  "organizations": {
+    "ShamsMSP": {
+      "mspid": "ShamsMSP",
+      "peers": ["test-peer0.shams.example.com"]
+    },
+    "RebarMSP": {
+      "mspid": "RebarMSP",
+      "peers": ["test-peer0.rebar.example.com"]
+    }
+  },
+  "orderers": {
+    "orderer.example.com": {
+      "url": "grpc://localhost:7150"
+    }
+  },
+  "peers": {
+    "peer0.shams.example.com": {
+      "url": "grpc://localhost:7151"
+    },
+    "peer0.rebar.example.com": {
+      "url": "grpc://localhost:9151"
+    }
+  }
+}

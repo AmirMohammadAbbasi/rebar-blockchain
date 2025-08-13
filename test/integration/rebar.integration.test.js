@@ -14,7 +14,9 @@ describe("Integration - RebarContract", function () {
 
   it("should produce rebar from existing shams batch", async () => {
     const gateway = await connectAs("RebarUser");
-    const network = await gateway.getNetwork("rebar-channel");
+    const network = await gateway.getNetwork(
+      process.env.CHANNEL_NAME || "testchannel"
+    );
     const contract = network.getContract("rebarcc", "RebarContract");
 
     const rebar = { batchNo: "RB_INT_001", sourceShamsBatch: "S_INT_001" };
@@ -31,7 +33,9 @@ describe("Integration - RebarContract", function () {
 
   it("should fail for missing shams batch", async () => {
     const gateway = await connectAs("RebarUser");
-    const network = await gateway.getNetwork("rebar-channel");
+    const network = await gateway.getNetwork(
+      process.env.CHANNEL_NAME || "testchannel"
+    );
     const contract = network.getContract("rebarcc", "RebarContract");
 
     try {
