@@ -1,0 +1,5 @@
+*
+!Dockerfile.test
+!scripts/**
+!package.json
+!package-lock.json

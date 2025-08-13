@@ -1,0 +1,16 @@
+# Dockerfile.test
+FROM node:18-bullseye
+
+# نصب ابزارهای سیستمی مورد نیاز تست‌ها
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        docker.io \
+        netcat \
+        iputils-ping && \
+    rm -rf /var/lib/apt/lists/*
+
+# ست کردن دایرکتوری کار
+WORKDIR /app
+
+# پیش‌فرض ورود به bash 
+ENTRYPOINT ["/bin/bash", "-c"]

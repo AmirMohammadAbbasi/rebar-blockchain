@@ -111,3 +111,28 @@ services:
         condition: service_healthy
       test-orderer.example.com:
         condition: service_healthy
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: test-runner
+    tty: true
+    stdin_open: true
+    working_dir: /app
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/app
+    networks:
+      - fabric_test_net
+    depends_on:
+      test-orderer.example.com:
+        condition: service_healthy
+      test-peer0.shams.example.com:
+        condition: service_healthy
+      test-peer0.rebar.example.com:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - "cd /app && npm install --no-audit --no-fund && npm test"
+    platform: linux/amd64

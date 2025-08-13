@@ -93,3 +93,7 @@ exec_cli \
 
 echo "✅ Test network setup complete without TLS."
 docker ps --format "table {{.Names}}	{{.Status}}"
+
+# 🧪 اجرای سرویس test-runner برای تست‌ها
+echo "🧪 Running integration tests..."
+docker compose -f "$DOCKER_COMPOSE_FILE" run --rm test-runner

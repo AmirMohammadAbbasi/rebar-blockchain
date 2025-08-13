@@ -1,0 +1,14 @@
+{
+  "name": "rebar-integration-tests",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "mocha 'integration/**/*.test.js' --exit"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "sinon": "^15.2.0",
+    "fabric-network": "^2.2.18"
+  }
+}
