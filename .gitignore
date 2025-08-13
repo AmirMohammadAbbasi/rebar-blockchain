@@ -3,6 +3,9 @@
 *node_modules*
 *.tx
 *.block
+*.gz
+*.tar
 /test/config/artifacts/
 /test/artifacts/
 /test/config/crypto-config
+*package-lock*

@@ -5,6 +5,11 @@
   "scripts": {
     "test": "mocha 'integration/**/*.test.js' --exit"
   },
+  "dependencies": {
+    "fabric-network": "^2.2.20",
+    "fabric-ca-client": "^2.2.20"
+  },
+
   "devDependencies": {
     "mocha": "^10.2.0",
     "chai": "^4.3.7",
