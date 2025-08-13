@@ -20,16 +20,16 @@
     }
   },
   "orderers": {
-    "orderer.example.com": {
-      "url": "grpc://localhost:7150"
+    "test-orderer.example.com": {
+      "url": "grpc://test-orderer.example.com:7150"
     }
   },
   "peers": {
     "test-peer0.shams.example.com": {
-      "url": "grpc://localhost:7151"
+      "url": "grpc://test-peer0.shams.example.com:7151"
     },
     "test-peer0.rebar.example.com": {
-      "url": "grpc://localhost:9151"
+      "url": "grpc://test-peer0.rebar.example.com:9151"
     }
   }
 }
