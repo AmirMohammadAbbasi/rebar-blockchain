@@ -4,6 +4,13 @@ const { Contract } = require("fabric-contract-api");
 class ComplaintContract extends Contract {
   constructor() {
     super("rebar.complaint.contract");
+    // وزن هر سازمان
+    this.orgWeights = {
+      ShamsMSP: 2, // تولید شمش
+      RebarMSP: 2, // کارخانه نورد
+      TransportMSP: 1, // حمل و نقل
+      CustomerMSP: 1, // مشتری
+    };
   }
 
   _getClientOrgId(ctx) {
@@ -12,7 +19,7 @@ class ComplaintContract extends Contract {
 
   async registerComplaint(ctx, targetId, type, description, evidenceHash) {
     const callerMsp = this._getClientOrgId(ctx);
-    const allowed = ["CustomerMSP", "ShamsMSP", "RebarMSP", "TransportMSP"];
+    const allowed = Object.keys(this.orgWeights);
     if (!allowed.includes(callerMsp)) {
       throw new Error("Unauthorized to register complaint");
     }
@@ -43,26 +50,28 @@ class ComplaintContract extends Contract {
   async voteOnComplaint(ctx, complaintId, vote) {
     const callerMsp = this._getClientOrgId(ctx);
     const buf = await ctx.stub.getState(complaintId);
-    if (!buf || buf.length === 0) {
+    if (!buf || buf.length === 0)
       throw new Error(`Complaint ${complaintId} not found`);
-    }
 
     const complaint = JSON.parse(buf.toString());
     if (complaint.status !== "PendingVoting") {
       throw new Error(`Voting closed for complaint ${complaintId}`);
     }
 
-    // جلوگیری از رأی تکراری
     if (complaint.votes.some((v) => v.org === callerMsp)) {
       throw new Error(`Org ${callerMsp} already voted`);
     }
 
-    const voteObj = {
+    if (!Object.keys(this.orgWeights).includes(callerMsp)) {
+      throw new Error(`Org ${callerMsp} not authorized to vote`);
+    }
+
+    complaint.votes.push({
       org: callerMsp,
+      weight: this.orgWeights[callerMsp],
       vote,
       at: new Date().toISOString(),
-    };
-    complaint.votes.push(voteObj);
+    });
 
     await ctx.stub.putState(
       complaintId,
@@ -71,33 +80,34 @@ class ComplaintContract extends Contract {
     return complaint;
   }
 
-  async checkConsensus(ctx, complaintId, requiredAccepts) {
+  async checkConsensus(ctx, complaintId, requiredWeight) {
     const buf = await ctx.stub.getState(complaintId);
-    if (!buf || buf.length === 0) {
+    if (!buf || buf.length === 0)
       throw new Error(`Complaint ${complaintId} not found`);
-    }
 
     const complaint = JSON.parse(buf.toString());
     if (complaint.status !== "PendingVoting") {
-      return complaint; // No change
+      return complaint;
     }
 
-    const accepts = complaint.votes.filter((v) => v.vote === "accept").length;
-    if (accepts >= parseInt(requiredAccepts)) {
+    // محاسبه وزن موافق‌ها
+    const acceptWeight = complaint.votes
+      .filter((v) => v.vote === "accept")
+      .reduce((sum, v) => sum + v.weight, 0);
+
+    if (acceptWeight >= parseInt(requiredWeight)) {
       complaint.status = "Approved";
       await ctx.stub.setEvent(
         "SettlementTriggered",
         Buffer.from(JSON.stringify({ complaintId }))
       );
     } else {
-      const allParties = [
-        "ShamsMSP",
-        "RebarMSP",
-        "TransportMSP",
-        "CustomerMSP",
-      ];
+      // اگر همه رأی داده باشند اما به حد نصاب نرسد → رد شده
       const votedOrgs = complaint.votes.map((v) => v.org);
-      if (allParties.every((org) => votedOrgs.includes(org))) {
+      const allVoted = Object.keys(this.orgWeights).every((org) =>
+        votedOrgs.includes(org)
+      );
+      if (allVoted) {
         complaint.status = "Rejected";
       }
     }
