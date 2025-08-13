@@ -2,60 +2,60 @@
 set -e
 
 TEST_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-ARTIFACTS_DIR="${TEST_DIR}/artifacts"
+CONFIG_DIR="${TEST_DIR}/config"
 TOOLS_IMG="hyperledger/fabric-tools:2.5"
-CHANNEL_NAME="testchannel"
 
-echo "🧹 Cleaning old TEST artifacts..."
-rm -rf "${ARTIFACTS_DIR}"
-mkdir -p "${ARTIFACTS_DIR}"
+# بارگذاری متغیرها
+source "${TEST_DIR}/scripts/env.sh"
 
-echo "📄 Copying configtx.yaml to artifacts..."
-cp "${TEST_DIR}/config/configtx.yaml" "${ARTIFACTS_DIR}/"
+echo "🧹 Cleaning old test artifacts..."
+rm -rf "${CONFIG_DIR}/crypto-config" \
+       "${CONFIG_DIR}"/*.block \
+       "${CONFIG_DIR}"/*.tx
 
-echo "🔨 Generating TEST crypto materials..."
+echo "🔨 Generating test crypto materials..."
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
     --platform linux/amd64 $TOOLS_IMG \
     cryptogen generate \
         --config=config/crypto-config.yaml \
-        --output="artifacts/crypto-config"
+        --output=config/crypto-config
 
-echo "🧩 Generating TEST genesis block (solo, no TLS)..."
+echo "🧩 Generating genesis block (RebarGenesis profile)..."
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
-    -e FABRIC_CFG_PATH=/workspace/artifacts \
+    -e FABRIC_CFG_PATH=/workspace/config \
     --platform linux/amd64 $TOOLS_IMG \
     configtxgen \
-        -profile TestGenesis \
-        -outputBlock "artifacts/genesis.block" \
+        -profile RebarGenesis \
+        -outputBlock config/genesis.block \
         -channelID system-channel
 
-echo "📄 Generating TEST channel creation transaction..."
+echo "📄 Generating channel creation transaction (RebarChannel profile)..."
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
-    -e FABRIC_CFG_PATH=/workspace/artifacts \
+    -e FABRIC_CFG_PATH=/workspace/config \
     --platform linux/amd64 $TOOLS_IMG \
     configtxgen \
-        -profile TestChannel \
-        -outputCreateChannelTx "artifacts/${CHANNEL_NAME}.tx" \
+        -profile RebarChannel \
+        -outputCreateChannelTx config/${CHANNEL_NAME}.tx \
         -channelID ${CHANNEL_NAME}
 
-echo "📍 Generating TEST Anchor Peer Updates..."
+echo "📍 Generating Anchor Peer Updates..."
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
-    -e FABRIC_CFG_PATH=/workspace/artifacts \
+    -e FABRIC_CFG_PATH=/workspace/config \
     --platform linux/amd64 $TOOLS_IMG \
     configtxgen \
-        -profile TestChannel \
-        -outputAnchorPeersUpdate "artifacts/ShamsMSPanchors.tx" \
+        -profile RebarChannel \
+        -outputAnchorPeersUpdate config/ShamsMSPanchors.tx \
         -asOrg ShamsOrg \
         -channelID ${CHANNEL_NAME}
 
 docker run --rm -v "$TEST_DIR":/workspace -w /workspace \
-    -e FABRIC_CFG_PATH=/workspace/artifacts \
+    -e FABRIC_CFG_PATH=/workspace/config \
     --platform linux/amd64 $TOOLS_IMG \
     configtxgen \
-        -profile TestChannel \
-        -outputAnchorPeersUpdate "artifacts/RebarMSPanchors.tx" \
+        -profile RebarChannel \
+        -outputAnchorPeersUpdate config/RebarMSPanchors.tx \
         -asOrg RebarOrg \
         -channelID ${CHANNEL_NAME}
 
-echo "✅ TEST artifacts generated in ${ARTIFACTS_DIR}:"
-ls -1 "${ARTIFACTS_DIR}"
+echo "✅ Test artifacts generated in ${CONFIG_DIR}:"
+ls -1 "${CONFIG_DIR}"

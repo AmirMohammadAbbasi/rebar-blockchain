@@ -5,3 +5,4 @@
 *.block
 /test/config/artifacts/
 /test/artifacts/
+/test/config/crypto-config

@@ -2,7 +2,7 @@ OrdererOrgs:
   - Name: OrdererOrg
     Domain: example.com
     Specs:
-      - Hostname: orderer
+      - Hostname: test-orderer
 PeerOrgs:
   - Name: ShamsOrg
     Domain: shams.example.com

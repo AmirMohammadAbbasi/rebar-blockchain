@@ -14,8 +14,8 @@ Organizations:
         Type: Signature
         Rule: "OR('ShamsMSP.admin')"
     AnchorPeers:
-      - Host: peer0.shams.example.com
-        Port: 7051
+      - Host: test-peer0.shams.example.com
+        Port: 7151
 
   - &RebarOrg
     Name: RebarOrg
@@ -32,13 +32,28 @@ Organizations:
         Type: Signature
         Rule: "OR('RebarMSP.admin')"
     AnchorPeers:
-      - Host: peer0.rebar.example.com
-        Port: 9051
+      - Host: test-peer0.rebar.example.com
+        Port: 9151
+
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: crypto-config/ordererOrganizations/example.com/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
 
 Orderer: &OrdererDefaults
   OrdererType: solo
   Addresses:
-    - orderer.example.com:7050
+    - test-orderer.example.com:7150
   BatchTimeout: 2s
   BatchSize:
     MaxMessageCount: 10
@@ -47,63 +62,44 @@ Orderer: &OrdererDefaults
   Policies:
     Readers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Writers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Admins:
       Type: Signature
-      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
     BlockValidation:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
 
 Channel: &ChannelDefaults
   Policies:
     Readers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Writers:
       Type: Signature
-      Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
     Admins:
       Type: Signature
-      Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
 
 Profiles:
-  TestGenesis:
+  RebarGenesis:
     <<: *ChannelDefaults
     Orderer:
       <<: *OrdererDefaults
       Organizations:
-        - *ShamsOrg
-        - *RebarOrg
+        - *OrdererOrg
     Consortiums:
-      TestConsortium:
+      RebarConsortium:
         Organizations:
           - *ShamsOrg
           - *RebarOrg
 
-  TestChannel:
-    Consortium: TestConsortium
-    <<: *ChannelDefaults
-    Application:
-      Organizations:
-        - *ShamsOrg
-        - *RebarOrg
-      Policies:
-        Readers:
-          Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
-        Writers:
-          Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
-        Admins:
-          Type: Signature
-          Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
-
   RebarChannel:
-    Consortium: TestConsortium
+    Consortium: RebarConsortium
     <<: *ChannelDefaults
     Application:
       Organizations:
@@ -112,10 +108,10 @@ Profiles:
       Policies:
         Readers:
           Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
         Writers:
           Type: Signature
-          Rule: "OR('ShamsMSP.member', 'RebarMSP.member')"
+          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
         Admins:
           Type: Signature
-          Rule: "OutOf(2, 'ShamsMSP.admin','RebarMSP.admin')"
+          Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
