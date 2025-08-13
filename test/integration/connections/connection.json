@@ -25,10 +25,10 @@
     }
   },
   "peers": {
-    "peer0.shams.example.com": {
+    "test-peer0.shams.example.com": {
       "url": "grpc://localhost:7151"
     },
-    "peer0.rebar.example.com": {
+    "test-peer0.rebar.example.com": {
       "url": "grpc://localhost:9151"
     }
   }

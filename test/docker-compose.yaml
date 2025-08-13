@@ -102,6 +102,8 @@ services:
       - ./config:/etc/hyperledger/config
       - ./config/crypto-config:/etc/hyperledger/crypto-config
       - ./chaincode:/opt/gopath/src/github.com/chaincode
+      - ./config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp:/var/hyperledger/msp/shams/admin
+      - ./config/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp:/var/hyperledger/msp/rebar/admin
     networks:
       - fabric_test_net
     depends_on:

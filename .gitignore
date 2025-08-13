@@ -9,3 +9,4 @@
 /test/artifacts/
 /test/config/crypto-config
 *package-lock*
+*.id
