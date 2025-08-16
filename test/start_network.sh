@@ -1,11 +1,9 @@
 #!/bin/bash
 set -e
 
-# مسیر پوشه test
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 DOCKER_COMPOSE_FILE="$TEST_DIR/docker-compose.yaml"
 
-# بارگذاری متغیر‌ها از env.sh تست
 source "$TEST_DIR/scripts/env.sh"
 : "${CHANNEL_NAME:?CHANNEL_NAME not set in env.sh}"
 
@@ -21,13 +19,22 @@ rm -rf "$TEST_DIR/config/crypto-config" \
 echo "🔨 Generating artifacts..."
 "$TEST_DIR/scripts/generate_artifacts.sh"
 
-echo "🚀 Starting all Fabric containers..."
-docker compose -f "$DOCKER_COMPOSE_FILE" up -d
+# 🚨 گارد MSP Admin
+ADMIN_MSP="$TEST_DIR/config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp"
+if [ ! -d "$ADMIN_MSP" ]; then
+  echo "❌ Admin MSP materials missing — generation failed."
+  exit 1
+fi
 
-echo "⏳ Waiting for orderer & peers healthchecks..."
+echo "🚀 Starting Orderer & Peers..."
+docker compose -f "$DOCKER_COMPOSE_FILE" up -d test-orderer.example.com test-peer0.shams.example.com test-peer0.rebar.example.com
+
+echo "⏳ Waiting for peers to be healthy..."
 sleep 10
 
-# Helper to run peer commands inside CLI container
+# حالا CLI رو بالا بیاریم چون MSP الآن مطمئن آماده‌ست
+docker compose -f "$DOCKER_COMPOSE_FILE" up -d test-cli
+
 exec_cli() {
   local MSP_ID="$1"
   local MSP_PATH="$2"
@@ -43,57 +50,40 @@ exec_cli() {
 
 # ==== Channel creation (ShamsMSP Admin) ====
 echo "📄 Creating channel: ${CHANNEL_NAME}"
-exec_cli \
-  ShamsMSP \
-  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
-  test-peer0.shams.example.com:7151 \
+exec_cli ShamsMSP /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp test-peer0.shams.example.com:7151 \
   peer channel create \
     -o test-orderer.example.com:7150 \
     -c "${CHANNEL_NAME}" \
     -f "/etc/hyperledger/config/${CHANNEL_NAME}.tx" \
     --outputBlock "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
-# ==== Join Shams peer ====
 echo "🔗 Joining Shams peer..."
-exec_cli \
-  ShamsMSP \
-  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
-  test-peer0.shams.example.com:7151 \
+exec_cli ShamsMSP /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp test-peer0.shams.example.com:7151 \
   peer channel join -b "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
-# ==== Join Rebar peer ====
 echo "🔗 Joining Rebar peer..."
-exec_cli \
-  RebarMSP \
-  /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
-  test-peer0.rebar.example.com:9151 \
+exec_cli RebarMSP /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp test-peer0.rebar.example.com:9151 \
   peer channel join -b "/etc/hyperledger/config/${CHANNEL_NAME}.block"
 
-# ==== Update Shams anchor peers ====
 echo "📍 Updating Shams anchor peers..."
-exec_cli \
-  ShamsMSP \
-  /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
-  test-peer0.shams.example.com:7151 \
+exec_cli ShamsMSP /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp test-peer0.shams.example.com:7151 \
   peer channel update \
     -o test-orderer.example.com:7150 \
     -c "${CHANNEL_NAME}" \
     -f "/etc/hyperledger/config/ShamsMSPanchors.tx"
 
-# ==== Update Rebar anchor peers ====
 echo "📍 Updating Rebar anchor peers..."
-exec_cli \
-  RebarMSP \
-  /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
-  test-peer0.rebar.example.com:9151 \
+exec_cli RebarMSP /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp test-peer0.rebar.example.com:9151 \
   peer channel update \
     -o test-orderer.example.com:7150 \
     -c "${CHANNEL_NAME}" \
     -f "/etc/hyperledger/config/RebarMSPanchors.tx"
 
 echo "✅ Test network setup complete without TLS."
-docker ps --format "table {{.Names}}	{{.Status}}"
+docker ps --format "table {{.Names}}\t{{.Status}}"
 
-# 🧪 اجرای سرویس test-runner برای تست‌ها
+echo "⚙️ Deploying test chaincode..."
+"$TEST_DIR/scripts/deploy_chaincode.sh"
+
 echo "🧪 Running integration tests..."
 docker compose -f "$DOCKER_COMPOSE_FILE" run --rm test-runner

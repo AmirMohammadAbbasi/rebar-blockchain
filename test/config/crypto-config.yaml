@@ -3,12 +3,20 @@ OrdererOrgs:
     Domain: example.com
     Specs:
       - Hostname: test-orderer
+
 PeerOrgs:
   - Name: ShamsOrg
     Domain: shams.example.com
+    EnableNodeOUs: true
     Template:
       Count: 1
+    Users:
+      Count: 1 # Admin@shams.example.com ساخته می‌شود
+
   - Name: RebarOrg
     Domain: rebar.example.com
+    EnableNodeOUs: true
     Template:
       Count: 1
+    Users:
+      Count: 1 # Admin@rebar.example.com ساخته می‌شود

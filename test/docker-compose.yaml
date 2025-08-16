@@ -18,8 +18,8 @@ services:
       - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/genesis.block
       - ORDERER_GENERAL_TLS_ENABLED=false
     volumes:
-      - ./config/genesis.block:/var/hyperledger/orderer/genesis.block
-      - ./config/crypto-config/ordererOrganizations/example.com/orderers/test-orderer.example.com/msp:/var/hyperledger/orderer/msp
+      - ${PWD}/config/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ${PWD}/config/crypto-config/ordererOrganizations/example.com/orderers/test-orderer.example.com/msp:/var/hyperledger/orderer/msp
     ports:
       - 7150:7150
     networks:
@@ -43,7 +43,10 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - ${PWD}/config:/etc/hyperledger/config
+      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
+      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
+      - ${PWD}/config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
     ports:
       - 7151:7151
     depends_on:
@@ -70,7 +73,10 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+      - ${PWD}/config:/etc/hyperledger/config
+      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
+      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
+      - ${PWD}/config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
     ports:
       - 9151:9151
     depends_on:
@@ -99,11 +105,9 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ./config:/etc/hyperledger/config
-      - ./config/crypto-config:/etc/hyperledger/crypto-config
-      - ./chaincode:/opt/gopath/src/github.com/chaincode
-      - ./config/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp:/var/hyperledger/msp/shams/admin
-      - ./config/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp:/var/hyperledger/msp/rebar/admin
+      - ${PWD}/config:/etc/hyperledger/config
+      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
+      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
     networks:
       - fabric_test_net
     depends_on:
@@ -124,7 +128,7 @@ services:
     working_dir: /app
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - .:/app
+      - ${PWD}:/app
     networks:
       - fabric_test_net
     depends_on:
