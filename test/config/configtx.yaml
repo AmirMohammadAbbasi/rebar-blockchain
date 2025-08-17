@@ -13,6 +13,9 @@ Organizations:
       Admins:
         Type: Signature
         Rule: "OR('ShamsMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('ShamsMSP.peer')"
     AnchorPeers:
       - Host: test-peer0.shams.example.com
         Port: 7151
@@ -31,6 +34,9 @@ Organizations:
       Admins:
         Type: Signature
         Rule: "OR('RebarMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('RebarMSP.peer')"
     AnchorPeers:
       - Host: test-peer0.rebar.example.com
         Port: 9151
@@ -133,6 +139,8 @@ Profiles:
         Organizations:
           - *ShamsOrg
           - *RebarOrg
+    Capabilities:
+      <<: *ChannelCapabilities
 
   RebarChannel:
     Consortium: RebarConsortium
@@ -144,3 +152,5 @@ Profiles:
         - *RebarOrg
       Capabilities:
         <<: *ApplicationCapabilities
+    Capabilities:
+      <<: *ChannelCapabilities

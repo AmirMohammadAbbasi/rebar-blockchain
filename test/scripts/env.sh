@@ -1,21 +1,22 @@
 #!/bin/bash
 
-# ==== Test Channel & Chaincode Config ====
-export CHANNEL_NAME=testchannel
-export CC_NAME=rebarcc
-export CC_VERSION=1.0
-export CC_SEQUENCE=1
+# Channel configuration
+export CHANNEL_NAME="testchannel"
 
-# مسیر chaincode داخل کانتینرهای peer
-export CC_SRC_PATH=/opt/gopath/src/github.com/chaincode
+# Chaincode configuration
+export CC_NAME="shams"
+export CC_VERSION="1.0"
+export CC_SEQUENCE="1"
+export CC_SRC_PATH="/opt/gopath/src/github.com/chaincode"
 
-# ==== Fabric CLI Tool Image ====
-export TOOLS_IMG=hyperledger/fabric-tools:2.5
+# Orderer configuration
+export ORDERER_ENDPOINT="test-orderer.example.com:7150"
 
-# پیکربندی configtxgen و cryptogen درون کانتینر
-export FABRIC_CFG_PATH=/opt/gopath/config
+# Organization MSPs
+export SHAMS_MSP_ID="ShamsMSP"
+export REBAR_MSP_ID="RebarMSP"
+export ORDERER_MSP_ID="OrdererMSP"
 
-# چون تست در حالت بدون TLS اجرا می‌شود، این‌ها لازم نیست
-export ORDERER_CA=""
-export PEER0_SHAMS_CA=""
-export PEER0_REBAR_CA=""
+# Peer addresses
+export SHAMS_PEER="test-peer0.shams.example.com:7151"
+export REBAR_PEER="test-peer0.rebar.example.com:9151"

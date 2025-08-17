@@ -1,5 +1,3 @@
-version: '3.7'
-
 networks:
   fabric_test_net:
     external: true
@@ -18,8 +16,8 @@ services:
       - ORDERER_GENERAL_BOOTSTRAPFILE=/var/hyperledger/orderer/genesis.block
       - ORDERER_GENERAL_TLS_ENABLED=false
     volumes:
-      - ${PWD}/config/genesis.block:/var/hyperledger/orderer/genesis.block
-      - ${PWD}/config/crypto-config/ordererOrganizations/example.com/orderers/test-orderer.example.com/msp:/var/hyperledger/orderer/msp
+      - ./config/genesis.block:/var/hyperledger/orderer/genesis.block
+      - ./config/crypto-config/ordererOrganizations/example.com/orderers/test-orderer.example.com/msp:/var/hyperledger/orderer/msp
     ports:
       - 7150:7150
     networks:
@@ -42,11 +40,10 @@ services:
       - CORE_PEER_LOCALMSPID=ShamsMSP
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
-      - ${PWD}/config:/etc/hyperledger/config
-      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
-      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
-      - ${PWD}/config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 7151:7151
     depends_on:
@@ -72,11 +69,10 @@ services:
       - CORE_PEER_LOCALMSPID=RebarMSP
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
+      - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
-      - ${PWD}/config:/etc/hyperledger/config
-      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
-      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
-      - ${PWD}/config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+      - ./config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - 9151:9151
     depends_on:
@@ -105,9 +101,9 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp
       - CORE_PEER_TLS_ENABLED=false
     volumes:
-      - ${PWD}/config:/etc/hyperledger/config
-      - ${PWD}/config/crypto-config:/etc/hyperledger/crypto-config
-      - ${PWD}/chaincode:/opt/gopath/src/github.com/chaincode
+      - ./config:/etc/hyperledger/config
+      - ./config/crypto-config:/etc/hyperledger/crypto-config
+      - ../chaincode:/opt/gopath/src/github.com/chaincode
     networks:
       - fabric_test_net
     depends_on:
