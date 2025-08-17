@@ -26,14 +26,17 @@ if [ ! -d "$ADMIN_MSP" ]; then
   exit 1
 fi
 
-echo "🚀 Starting Orderer & Peers..."
-docker compose -f "$DOCKER_COMPOSE_FILE" up -d test-orderer.example.com test-peer0.shams.example.com test-peer0.rebar.example.com
+echo "🚀 Starting network..."
+docker compose -f "$DOCKER_COMPOSE_FILE" up -d
 
-echo "⏳ Waiting for peers to be healthy..."
-sleep 10
+echo "⏳ Waiting for network to stabilize (20 seconds)..."
+sleep 20
 
-# حالا CLI رو بالا بیاریم چون MSP الآن مطمئن آماده‌ست
+echo "🛠️ Starting CLI container..."
 docker compose -f "$DOCKER_COMPOSE_FILE" up -d test-cli
+
+# Wait for CLI to be ready
+sleep 5
 
 exec_cli() {
   local MSP_ID="$1"

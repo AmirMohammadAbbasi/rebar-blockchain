@@ -6,10 +6,10 @@ Organizations:
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('ShamsMSP.member')"
+        Rule: "OR('ShamsMSP.admin','ShamsMSP.peer','ShamsMSP.client')"
       Writers:
         Type: Signature
-        Rule: "OR('ShamsMSP.member')"
+        Rule: "OR('ShamsMSP.admin','ShamsMSP.client')"
       Admins:
         Type: Signature
         Rule: "OR('ShamsMSP.admin')"
@@ -24,10 +24,10 @@ Organizations:
     Policies:
       Readers:
         Type: Signature
-        Rule: "OR('RebarMSP.member')"
+        Rule: "OR('RebarMSP.admin','RebarMSP.peer','RebarMSP.client')"
       Writers:
         Type: Signature
-        Rule: "OR('RebarMSP.member')"
+        Rule: "OR('RebarMSP.admin','RebarMSP.client')"
       Admins:
         Type: Signature
         Rule: "OR('RebarMSP.admin')"
@@ -50,6 +50,35 @@ Organizations:
         Type: Signature
         Rule: "OR('OrdererMSP.admin')"
 
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_0: true
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
 Orderer: &OrdererDefaults
   OrdererType: solo
   Addresses:
@@ -59,31 +88,36 @@ Orderer: &OrdererDefaults
     MaxMessageCount: 10
     AbsoluteMaxBytes: 99 MB
     PreferredMaxBytes: 512 KB
+  Organizations:
   Policies:
     Readers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
     Writers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
     Admins:
-      Type: Signature
-      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
     BlockValidation:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+  Capabilities:
+    <<: *OrdererCapabilities
 
 Channel: &ChannelDefaults
   Policies:
     Readers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
     Writers:
-      Type: Signature
-      Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
     Admins:
-      Type: Signature
-      Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
 
 Profiles:
   RebarGenesis:
@@ -92,6 +126,8 @@ Profiles:
       <<: *OrdererDefaults
       Organizations:
         - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
     Consortiums:
       RebarConsortium:
         Organizations:
@@ -102,16 +138,9 @@ Profiles:
     Consortium: RebarConsortium
     <<: *ChannelDefaults
     Application:
+      <<: *ApplicationDefaults
       Organizations:
         - *ShamsOrg
         - *RebarOrg
-      Policies:
-        Readers:
-          Type: Signature
-          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
-        Writers:
-          Type: Signature
-          Rule: "OR('OrdererMSP.member','ShamsMSP.member','RebarMSP.member')"
-        Admins:
-          Type: Signature
-          Rule: "OR('OrdererMSP.admin','ShamsMSP.admin','RebarMSP.admin')"
+      Capabilities:
+        <<: *ApplicationCapabilities
