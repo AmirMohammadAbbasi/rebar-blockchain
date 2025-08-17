@@ -4,8 +4,8 @@
   "client": {
     "connection": {
       "timeout": {
-        "peer": { "endorser": "300" },
-        "orderer": "300"
+        "peer": { "endorser": "30" },
+        "orderer": "30"
       }
     }
   },
@@ -15,7 +15,7 @@
       "peers": ["test-peer0.shams.example.com"]
     },
     "RebarMSP": {
-      "mspid": "RebarMSP",
+      "mspid": "RebarMSP", 
       "peers": ["test-peer0.rebar.example.com"]
     }
   },
@@ -30,6 +30,25 @@
     },
     "test-peer0.rebar.example.com": {
       "url": "grpc://test-peer0.rebar.example.com:9151"
+    }
+  },
+  "channels": {
+    "testchannel": {
+      "orderers": ["test-orderer.example.com"],
+      "peers": {
+        "test-peer0.shams.example.com": {
+          "endorsingPeer": true,
+          "chaincodeQuery": true,
+          "ledgerQuery": true,
+          "eventSource": true
+        },
+        "test-peer0.rebar.example.com": {
+          "endorsingPeer": true,
+          "chaincodeQuery": true,
+          "ledgerQuery": true,
+          "eventSource": true
+        }
+      }
     }
   }
 }

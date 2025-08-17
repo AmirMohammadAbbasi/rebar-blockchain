@@ -1,6 +1,5 @@
 "use strict";
 
-const FabricCAServices = require("fabric-ca-client");
 const path = require("path");
 const { Gateway, Wallets } = require("fabric-network");
 const fs = require("fs");
@@ -9,89 +8,75 @@ const orgs = [
   {
     name: "Shams",
     mspId: "ShamsMSP",
-    caURL: "http://ca.shams.example.com:7054",
-    adminUserId: "admin",
-    adminPassword: "adminpw",
+    cryptoPath:
+      "/etc/hyperledger/crypto-config/peerOrganizations/shams.example.com",
   },
   {
     name: "Rebar",
     mspId: "RebarMSP",
-    caURL: "http://ca.rebar.example.com:8054",
-    adminUserId: "admin",
-    adminPassword: "adminpw",
+    cryptoPath:
+      "/etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com",
   },
-  // {
-  //   name: "Finance",
-  //   mspId: "FinanceMSP",
-  //   caURL: "http://ca.finance.example.com:9054",
-  //   adminUserId: "admin",
-  //   adminPassword: "adminpw",
-  // },
-  // {
-  //   name: "Lifecycle",
-  //   mspId: "LifecycleMSP",
-  //   caURL: "http://ca.lifecycle.example.com:10054",
-  //   adminUserId: "admin",
-  //   adminPassword: "adminpw",
-  // },
 ];
 
-async function enrollAdmin(ca, wallet, mspId, adminUserId, adminPassword) {
-  const identity = await wallet.get(adminUserId);
+async function loadIdentityFromCrypto(
+  wallet,
+  mspId,
+  orgName,
+  cryptoPath,
+  userId = "Admin"
+) {
+  const identity = await wallet.get(userId);
   if (identity) {
-    console.log(`Admin identity for ${mspId} already exists in wallet`);
-    return;
-  }
-  const enrollment = await ca.enroll({
-    enrollmentID: adminUserId,
-    enrollmentSecret: adminPassword,
-  });
-  const x509Identity = {
-    credentials: {
-      certificate: enrollment.certificate,
-      privateKey: enrollment.key.toBytes(),
-    },
-    mspId,
-    type: "X.509",
-  };
-  await wallet.put(adminUserId, x509Identity);
-  console.log(`✅ Admin identity for ${mspId} enrolled and imported to wallet`);
-}
-
-async function registerAndEnrollUser(ca, wallet, mspId, userId) {
-  const userIdentity = await wallet.get(userId);
-  if (userIdentity) {
-    console.log(`User identity ${userId} already exists in wallet`);
+    console.log(`Identity ${userId} for ${mspId} already exists in wallet`);
     return;
   }
 
-  const adminIdentity = await wallet.get("admin");
-  if (!adminIdentity) {
-    throw new Error(`Admin identity not found in wallet for MSP ${mspId}`);
-  }
+  // برای RebarUser از Admin credentials استفاده می‌کنیم
+  const actualUserId = userId === "RebarUser" ? "Admin" : userId;
 
-  const provider = wallet.getProviderRegistry().getProvider(adminIdentity.type);
-  const adminUser = await provider.getUserContext(adminIdentity, "admin");
-
-  // affiliation حذف شده
-  const secret = await ca.register(
-    { enrollmentID: userId, role: "client" },
-    adminUser
+  const userPath = path.join(
+    cryptoPath,
+    "users",
+    `${actualUserId}@${orgName.toLowerCase()}.example.com`
   );
-  const enrollment = await ca.enroll({
-    enrollmentID: userId,
-    enrollmentSecret: secret,
-  });
+  const certPath = path.join(userPath, "msp", "signcerts");
+  const keyPath = path.join(userPath, "msp", "keystore");
+
+  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    throw new Error(
+      `Crypto materials not found for ${actualUserId}@${orgName} at ${userPath}`
+    );
+  }
+
+  const certFiles = fs.readdirSync(certPath);
+  const keyFiles = fs.readdirSync(keyPath);
+
+  if (certFiles.length === 0 || keyFiles.length === 0) {
+    throw new Error(
+      `No certificate or key files found for ${actualUserId}@${orgName}`
+    );
+  }
+
+  const certificate = fs.readFileSync(
+    path.join(certPath, certFiles[0]),
+    "utf8"
+  );
+  const privateKey = fs.readFileSync(path.join(keyPath, keyFiles[0]), "utf8");
+
   const x509Identity = {
     credentials: {
-      certificate: enrollment.certificate,
-      privateKey: enrollment.key.toBytes(),
+      certificate,
+      privateKey,
     },
     mspId,
     type: "X.509",
   };
+
   await wallet.put(userId, x509Identity);
-  console.log(`✅ User identity ${userId} enrolled and imported to wallet`);
+  console.log(
+    `✅ Identity ${userId} for ${mspId} loaded from crypto materials`
+  );
 }
 
 async function ensureAllTestIdentities() {
@@ -99,26 +84,30 @@ async function ensureAllTestIdentities() {
   const wallet = await Wallets.newFileSystemWallet(walletPath);
 
   for (let org of orgs) {
-    const ca = new FabricCAServices(org.caURL, {
-      trustedRoots: [],
-      verify: false,
-    });
-
-    await enrollAdmin(
-      ca,
+    // Load Admin
+    await loadIdentityFromCrypto(
       wallet,
       org.mspId,
-      org.adminUserId,
-      org.adminPassword
+      org.name,
+      org.cryptoPath,
+      "Admin"
     );
 
-    // affiliation حذف شده
-    await registerAndEnrollUser(ca, wallet, org.mspId, `${org.name}User`);
+    // Load RebarUser برای Rebar org
+    if (org.name === "Rebar") {
+      await loadIdentityFromCrypto(
+        wallet,
+        org.mspId,
+        org.name,
+        org.cryptoPath,
+        "RebarUser"
+      );
+    }
   }
 }
 
-async function connectAs(identityLabel) {
-  await ensureAllTestIdentities(); // هویت‌ها رو بساز اگه نیستند
+async function connectAs(identityLabel, orgName = "Shams") {
+  await ensureAllTestIdentities();
 
   const walletPath = path.join(__dirname, "wallet");
   const wallet = await Wallets.newFileSystemWallet(walletPath);
@@ -130,7 +119,7 @@ async function connectAs(identityLabel) {
   await gateway.connect(ccp, {
     wallet,
     identity: identityLabel,
-    discovery: { enabled: true, asLocalhost: true },
+    discovery: { enabled: false, asLocalhost: false },
   });
   return gateway;
 }
