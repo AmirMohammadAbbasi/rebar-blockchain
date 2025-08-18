@@ -98,11 +98,143 @@ exec_cli RebarMSP \
 echo "✅ Test network setup complete without TLS."
 docker ps --format "table {{.Names}}\t{{.Status}}"
 
-# اگر اسکریپت deploy_chaincode وجود دارد، آن را اجرا کن
-if [ -f "$TEST_DIR/scripts/deploy_chaincode.sh" ]; then
-    echo "⚙️ Deploying test chaincode..."
-    "$TEST_DIR/scripts/deploy_chaincode.sh"
+# ==== Deploy Chaincode ====
+echo "📦 Deploying chaincode..."
+
+# Package chaincode
+echo "📦 Packaging chaincode..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode package shamscontract.tar.gz \
+        --path /opt/gopath/src/github.com/chaincode \
+        --lang node \
+        --label shamscontract_1.0
+
+# Install on Shams peer
+echo "📦 Installing chaincode on Shams peer..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode install shamscontract.tar.gz
+
+# Install on Rebar peer
+echo "📦 Installing chaincode on Rebar peer..."
+exec_cli RebarMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
+    test-peer0.rebar.example.com:9151 \
+    peer lifecycle chaincode install shamscontract.tar.gz
+
+# Get package ID (without jq dependency)
+echo "🔍 Getting package ID..."
+PACKAGE_ID=$(exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode queryinstalled | grep -o 'shamscontract_1.0:[a-f0-9]*' | head -1)
+
+echo "Package ID: $PACKAGE_ID"
+
+if [ -z "$PACKAGE_ID" ]; then
+    echo "❌ Failed to get package ID"
+    exit 1
 fi
+
+# Approve for Shams
+echo "✅ Approving chaincode for Shams..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode approveformyorg \
+        --channelID "$CHANNEL_NAME" \
+        --name shamscontract \
+        --version 1.0 \
+        --package-id "$PACKAGE_ID" \
+        --sequence 1 \
+        --orderer test-orderer.example.com:7150
+
+# Approve for Rebar
+echo "✅ Approving chaincode for Rebar..."
+exec_cli RebarMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com/msp \
+    test-peer0.rebar.example.com:9151 \
+    peer lifecycle chaincode approveformyorg \
+        --channelID "$CHANNEL_NAME" \
+        --name shamscontract \
+        --version 1.0 \
+        --package-id "$PACKAGE_ID" \
+        --sequence 1 \
+        --orderer test-orderer.example.com:7150
+
+# Check commit readiness
+echo "🔍 Checking commit readiness..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode checkcommitreadiness \
+        --channelID "$CHANNEL_NAME" \
+        --name shamscontract \
+        --version 1.0 \
+        --sequence 1 \
+        --orderer test-orderer.example.com:7150
+
+# Commit chaincode
+echo "🚀 Committing chaincode..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode commit \
+        --channelID "$CHANNEL_NAME" \
+        --name shamscontract \
+        --version 1.0 \
+        --sequence 1 \
+        --orderer test-orderer.example.com:7150 \
+        --peerAddresses test-peer0.shams.example.com:7151 \
+        --peerAddresses test-peer0.rebar.example.com:9151
+
+echo "✅ Chaincode deployment complete"
+
+# ==== Create additional user identities needed for tests ====
+echo "👥 Creating additional user identities for tests..."
+
+# Create wallet directory structure in test container
+docker exec test-cli mkdir -p /etc/hyperledger/config/wallet
+
+# Copy admin certificates to create user identities with error handling
+echo "📋 Creating ShamsUser identity..."
+docker exec test-cli cp -r \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/ShamsUser@shams.example.com 2>/dev/null || echo "ShamsUser identity directory may already exist"
+
+echo "📋 Creating RebarUser identity..."
+docker exec test-cli cp -r \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/RebarUser@rebar.example.com 2>/dev/null || echo "RebarUser identity directory may already exist"
+
+echo "📋 Creating CustomerUser identity..."
+docker exec test-cli cp -r \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/CustomerUser@shams.example.com 2>/dev/null || echo "CustomerUser identity directory may already exist"
+
+echo "📋 Creating FinanceUser identity..."
+docker exec test-cli cp -r \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/Admin@rebar.example.com \
+    /etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com/users/FinanceUser@rebar.example.com 2>/dev/null || echo "FinanceUser identity directory may already exist"
+
+echo "📋 Creating LifecycleUser identity..."
+docker exec test-cli cp -r \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/LifecycleUser@shams.example.com 2>/dev/null || echo "LifecycleUser identity directory may already exist"
+
+echo "✅ User identities created"
+
+# Verify chaincode deployment before running tests
+echo "🔍 Verifying chaincode deployment..."
+exec_cli ShamsMSP \
+    /etc/hyperledger/crypto-config/peerOrganizations/shams.example.com/users/Admin@shams.example.com/msp \
+    test-peer0.shams.example.com:7151 \
+    peer lifecycle chaincode querycommitted -C "${CHANNEL_NAME}" --name shamscontract
+
+echo "✅ Chaincode verification complete"
 
 echo "🧪 Running integration tests..."
 docker compose -f "$DOCKER_COMPOSE_FILE" run --rm test-runner

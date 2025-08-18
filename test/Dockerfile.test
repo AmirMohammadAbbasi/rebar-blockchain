@@ -25,10 +25,10 @@ RUN echo '#!/bin/bash\n\
     npm install --prefix chaincode --no-audit --no-fund\n\
     fi\n\
     \n\
-    # نصب dependencies تست integration\n\
-    if [ -d "test/integration" ] && [ -f "test/integration/package.json" ]; then\n\
-    echo "Installing integration test dependencies..."\n\
-    npm install --prefix test/integration --no-audit --no-fund\n\
+    # نصب dependencies تست - مسیر درست\n\
+    if [ -d "test" ] && [ -f "test/package.json" ]; then\n\
+    echo "Installing test dependencies..."\n\
+    npm install --prefix test --no-audit --no-fund\n\
     fi\n\
     \n\
     # نصب dependencies اصلی اگر package.json وجود دارد\n\
@@ -37,11 +37,21 @@ RUN echo '#!/bin/bash\n\
     npm install --no-audit --no-fund\n\
     fi\n\
     \n\
-    echo "⏳ Waiting for chaincode deployment..."\n\
-    sleep 30\n\
+    echo "⏳ Waiting for network and chaincode deployment..."\n\
+    sleep 45\n\
     \n\
     echo "🧪 Running tests..."\n\
-    npm test --prefix test/integration || npm test\n\
+    # چک کن که کدام package.json موجود است و از آن استفاده کن\n\
+    if [ -f "test/package.json" ]; then\n\
+    echo "Running tests from test directory..."\n\
+    cd test && npm test\n\
+    elif [ -f "package.json" ]; then\n\
+    echo "Running tests from main directory..."\n\
+    npm test\n\
+    else\n\
+    echo "❌ No package.json found for tests!"\n\
+    exit 1\n\
+    fi\n\
     echo "✅ Tests completed!"\n' > /start.sh && \
     chmod +x /start.sh
 

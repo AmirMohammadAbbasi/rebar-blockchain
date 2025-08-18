@@ -124,6 +124,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}:/app
       - ./config/crypto-config:/etc/hyperledger/crypto-config
+    environment:
+      - NODE_ENV=test
+      - CORE_PEER_TLS_ENABLED=false
+      - CORE_PEER_LOCALMSPID=ShamsMSP
+      - CORE_PEER_ADDRESS=test-peer0.shams.example.com:7151
     networks:
       - fabric_test_net
     depends_on:
@@ -133,4 +138,6 @@ services:
         condition: service_healthy
       test-peer0.rebar.example.com:
         condition: service_healthy
+      test-cli:
+        condition: service_started
     platform: linux/amd64

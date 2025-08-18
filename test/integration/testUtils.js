@@ -32,20 +32,71 @@ async function loadIdentityFromCrypto(
     return;
   }
 
-  // برای RebarUser از Admin credentials استفاده می‌کنیم
-  const actualUserId = userId === "RebarUser" ? "Admin" : userId;
+  // تعیین مسیر user مناسب
+  let actualUserId, actualOrgName, actualMspId, actualCryptoPath;
+
+  if (
+    userId === "CustomerUser" ||
+    userId === "ShamsUser" ||
+    userId === "LifecycleUser"
+  ) {
+    // از Shams MSP استفاده کن
+    actualUserId = "Admin";
+    actualOrgName = "shams";
+    actualMspId = "ShamsMSP";
+    actualCryptoPath =
+      "/etc/hyperledger/crypto-config/peerOrganizations/shams.example.com";
+  } else if (userId === "FinanceUser") {
+    // از Rebar MSP استفاده کن
+    actualUserId = "Admin";
+    actualOrgName = "rebar";
+    actualMspId = "RebarMSP";
+    actualCryptoPath =
+      "/etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com";
+  } else if (userId === "RebarUser") {
+    actualUserId = "Admin";
+    actualOrgName = "rebar";
+    actualMspId = "RebarMSP";
+    actualCryptoPath =
+      "/etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com";
+  } else {
+    // Default behavior
+    actualUserId = userId;
+    actualOrgName = orgName.toLowerCase();
+    actualMspId = mspId;
+    actualCryptoPath = cryptoPath;
+  }
 
   const userPath = path.join(
-    cryptoPath,
+    actualCryptoPath,
     "users",
-    `${actualUserId}@${orgName.toLowerCase()}.example.com`
+    `${actualUserId}@${actualOrgName}.example.com`
   );
+
+  console.log(
+    `🔍 Loading identity ${userId} (actual: ${actualUserId}) for ${actualMspId}`
+  );
+  console.log(`📁 Looking for crypto materials at: ${userPath}`);
+
   const certPath = path.join(userPath, "msp", "signcerts");
   const keyPath = path.join(userPath, "msp", "keystore");
 
   if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+    // Debug: لیست کردن فایل‌های موجود
+    try {
+      const usersDir = path.join(actualCryptoPath, "users");
+      if (fs.existsSync(usersDir)) {
+        console.log(
+          `Available users in ${usersDir}:`,
+          fs.readdirSync(usersDir)
+        );
+      }
+    } catch (e) {
+      console.log(`Could not list users directory: ${e.message}`);
+    }
+
     throw new Error(
-      `Crypto materials not found for ${actualUserId}@${orgName} at ${userPath}`
+      `Crypto materials not found for ${actualUserId}@${actualOrgName} at ${userPath}`
     );
   }
 
@@ -54,7 +105,7 @@ async function loadIdentityFromCrypto(
 
   if (certFiles.length === 0 || keyFiles.length === 0) {
     throw new Error(
-      `No certificate or key files found for ${actualUserId}@${orgName}`
+      `No certificate or key files found for ${actualUserId}@${actualOrgName}`
     );
   }
 
@@ -69,13 +120,13 @@ async function loadIdentityFromCrypto(
       certificate,
       privateKey,
     },
-    mspId,
+    mspId: actualMspId,
     type: "X.509",
   };
 
   await wallet.put(userId, x509Identity);
   console.log(
-    `✅ Identity ${userId} for ${mspId} loaded from crypto materials`
+    `✅ Identity ${userId} for ${actualMspId} loaded from crypto materials`
   );
 }
 
@@ -83,8 +134,8 @@ async function ensureAllTestIdentities() {
   const walletPath = path.join(__dirname, "wallet");
   const wallet = await Wallets.newFileSystemWallet(walletPath);
 
+  // Load Admin identities for both orgs
   for (let org of orgs) {
-    // Load Admin
     await loadIdentityFromCrypto(
       wallet,
       org.mspId,
@@ -92,17 +143,26 @@ async function ensureAllTestIdentities() {
       org.cryptoPath,
       "Admin"
     );
+  }
 
-    // Load RebarUser برای Rebar org
-    if (org.name === "Rebar") {
-      await loadIdentityFromCrypto(
-        wallet,
-        org.mspId,
-        org.name,
-        org.cryptoPath,
-        "RebarUser"
-      );
-    }
+  // Load specific test users
+  const testUsers = [
+    "CustomerUser",
+    "ShamsUser",
+    "LifecycleUser",
+    "FinanceUser",
+    "RebarUser",
+  ];
+
+  for (let userId of testUsers) {
+    // تابع loadIdentityFromCrypto خودش org مناسب را انتخاب می‌کند
+    await loadIdentityFromCrypto(
+      wallet,
+      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
+      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
+      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
+      userId
+    );
   }
 }
 

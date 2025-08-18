@@ -1,11 +1,14 @@
 {
-  "name": "rebar-test-network",
+  "name": "test-network",
   "version": "1.0.0",
   "client": {
+    "organization": "ShamsMSP",
     "connection": {
       "timeout": {
-        "peer": { "endorser": "30" },
-        "orderer": "30"
+        "peer": {
+          "endorser": "300"
+        },
+        "orderer": "300"
       }
     }
   },
@@ -15,21 +18,18 @@
       "peers": ["test-peer0.shams.example.com"]
     },
     "RebarMSP": {
-      "mspid": "RebarMSP", 
+      "mspid": "RebarMSP",
       "peers": ["test-peer0.rebar.example.com"]
-    }
-  },
-  "orderers": {
-    "test-orderer.example.com": {
-      "url": "grpc://test-orderer.example.com:7150"
     }
   },
   "peers": {
     "test-peer0.shams.example.com": {
-      "url": "grpc://test-peer0.shams.example.com:7151"
+      "url": "grpc://test-peer0.shams.example.com:7151",
+      "tlsEnabled": false
     },
     "test-peer0.rebar.example.com": {
-      "url": "grpc://test-peer0.rebar.example.com:9151"
+      "url": "grpc://test-peer0.rebar.example.com:9151",
+      "tlsEnabled": false
     }
   },
   "channels": {
@@ -49,6 +49,12 @@
           "eventSource": true
         }
       }
+    }
+  },
+  "orderers": {
+    "test-orderer.example.com": {
+      "url": "grpc://test-orderer.example.com:7150",
+      "tlsEnabled": false
     }
   }
 }
