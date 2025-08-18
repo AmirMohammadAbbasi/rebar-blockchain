@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-source "$ROOT_DIR/scripts/env.sh"
 
 echo "Current directory: ${ROOT_DIR}"
 
