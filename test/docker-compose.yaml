@@ -123,7 +123,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${PWD}:/app
-      - ./config/crypto-config:/etc/hyperledger/crypto-config
+      - ./config/crypto-config:/etc/hyperledger/crypto-config:ro
     environment:
       - NODE_ENV=test
       - CORE_PEER_TLS_ENABLED=false

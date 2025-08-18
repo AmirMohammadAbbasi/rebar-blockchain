@@ -236,5 +236,3 @@ exec_cli ShamsMSP \
 
 echo "✅ Chaincode verification complete"
 
-echo "🧪 Running integration tests..."
-docker compose -f "$DOCKER_COMPOSE_FILE" run --rm test-runner
