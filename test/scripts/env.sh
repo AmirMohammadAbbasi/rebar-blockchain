@@ -4,7 +4,7 @@
 export CHANNEL_NAME="testchannel"
 
 # Chaincode configuration
-export CC_NAME="shams"
+export CC_NAME="rebarcc"
 export CC_VERSION="1.0"
 export CC_SEQUENCE="1"
 export CC_SRC_PATH="/opt/gopath/src/github.com/chaincode"

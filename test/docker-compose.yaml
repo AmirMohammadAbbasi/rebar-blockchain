@@ -41,6 +41,9 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - CORE_CHAINCODE_BUILDER_TLS_ENABLED=false
+      - CORE_CHAINCODE_NODE_RUNTIME=true
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
     volumes:
       - ./config/crypto-config/peerOrganizations/shams.example.com/peers/peer0.shams.example.com/msp:/var/hyperledger/peer/msp
       - /var/run/docker.sock:/var/run/docker.sock
@@ -70,6 +73,9 @@ services:
       - CORE_PEER_MSPCONFIGPATH=/var/hyperledger/peer/msp
       - CORE_PEER_TLS_ENABLED=false
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - CORE_CHAINCODE_BUILDER_TLS_ENABLED=false
+      - CORE_CHAINCODE_NODE_RUNTIME=true
+      - CORE_CHAINCODE_EXECUTETIMEOUT=300s
     volumes:
       - ./config/crypto-config/peerOrganizations/rebar.example.com/peers/peer0.rebar.example.com/msp:/var/hyperledger/peer/msp
       - /var/run/docker.sock:/var/run/docker.sock

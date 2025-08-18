@@ -40,27 +40,18 @@ async function loadIdentityFromCrypto(
     userId === "ShamsUser" ||
     userId === "LifecycleUser"
   ) {
-    // از Shams MSP استفاده کن
     actualUserId = "Admin";
     actualOrgName = "shams";
     actualMspId = "ShamsMSP";
     actualCryptoPath =
       "/etc/hyperledger/crypto-config/peerOrganizations/shams.example.com";
-  } else if (userId === "FinanceUser") {
-    // از Rebar MSP استفاده کن
-    actualUserId = "Admin";
-    actualOrgName = "rebar";
-    actualMspId = "RebarMSP";
-    actualCryptoPath =
-      "/etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com";
-  } else if (userId === "RebarUser") {
+  } else if (userId === "FinanceUser" || userId === "RebarUser") {
     actualUserId = "Admin";
     actualOrgName = "rebar";
     actualMspId = "RebarMSP";
     actualCryptoPath =
       "/etc/hyperledger/crypto-config/peerOrganizations/rebar.example.com";
   } else {
-    // Default behavior
     actualUserId = userId;
     actualOrgName = orgName.toLowerCase();
     actualMspId = mspId;
@@ -78,23 +69,23 @@ async function loadIdentityFromCrypto(
   );
   console.log(`📁 Looking for crypto materials at: ${userPath}`);
 
+  // بررسی وجود مسیر
+  if (!fs.existsSync(userPath)) {
+    console.log(`❌ User path does not exist: ${userPath}`);
+
+    // نمایش مسیرهای موجود برای دیباگ
+    const usersDir = path.join(actualCryptoPath, "users");
+    if (fs.existsSync(usersDir)) {
+      console.log(`Available users:`, fs.readdirSync(usersDir));
+    }
+
+    throw new Error(`User path not found: ${userPath}`);
+  }
+
   const certPath = path.join(userPath, "msp", "signcerts");
   const keyPath = path.join(userPath, "msp", "keystore");
 
   if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-    // Debug: لیست کردن فایل‌های موجود
-    try {
-      const usersDir = path.join(actualCryptoPath, "users");
-      if (fs.existsSync(usersDir)) {
-        console.log(
-          `Available users in ${usersDir}:`,
-          fs.readdirSync(usersDir)
-        );
-      }
-    } catch (e) {
-      console.log(`Could not list users directory: ${e.message}`);
-    }
-
     throw new Error(
       `Crypto materials not found for ${actualUserId}@${actualOrgName} at ${userPath}`
     );
@@ -125,9 +116,7 @@ async function loadIdentityFromCrypto(
   };
 
   await wallet.put(userId, x509Identity);
-  console.log(
-    `✅ Identity ${userId} for ${actualMspId} loaded from crypto materials`
-  );
+  console.log(`✅ Identity ${userId} for ${actualMspId} loaded successfully`);
 }
 
 async function ensureAllTestIdentities() {
@@ -155,14 +144,7 @@ async function ensureAllTestIdentities() {
   ];
 
   for (let userId of testUsers) {
-    // تابع loadIdentityFromCrypto خودش org مناسب را انتخاب می‌کند
-    await loadIdentityFromCrypto(
-      wallet,
-      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
-      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
-      "AUTO", // این parameter اهمیت ندارد چون در تابع override می‌شود
-      userId
-    );
+    await loadIdentityFromCrypto(wallet, "AUTO", "AUTO", "AUTO", userId);
   }
 }
 
@@ -173,6 +155,11 @@ async function connectAs(identityLabel, orgName = "Shams") {
   const wallet = await Wallets.newFileSystemWallet(walletPath);
 
   const ccpPath = path.resolve(__dirname, "connections", "connection.json");
+
+  if (!fs.existsSync(ccpPath)) {
+    throw new Error(`Connection profile not found at: ${ccpPath}`);
+  }
+
   const ccp = JSON.parse(fs.readFileSync(ccpPath, "utf8"));
 
   const gateway = new Gateway();
@@ -181,6 +168,7 @@ async function connectAs(identityLabel, orgName = "Shams") {
     identity: identityLabel,
     discovery: { enabled: false, asLocalhost: false },
   });
+
   return gateway;
 }
 
